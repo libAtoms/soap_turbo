@@ -1,13 +1,13 @@
-# GAP_turbo
+# soap_turbo
 
 ## Legal and copyright
 
-**GAP_turbo** is copyright (c) 2019-2021, Miguel A. Caro
+**soap_turbo** is copyright (c) 2019-2021, Miguel A. Caro
 
-**GAP_turbo** is published and distributed under the
+**soap_turbo** is published and distributed under the
 Academic Software License v1.0 (ASL)
 
-**GAP_turbo** is distributed in the hope that it will be useful for
+**soap_turbo** is distributed in the hope that it will be useful for
 non-commercial academic research, but WITHOUT ANY WARRANTY; without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE. See the ASL for more details. You should have received a copy
@@ -24,5 +24,5 @@ When using this software, please cite the following reference:
 
 ## About the code
 
-**GAP_turbo** comprises a series of libraries to be used in combination
+**soap_turbo** comprises a series of libraries to be used in combination
 with **QUIP/GAP** and **TurboGAP**.

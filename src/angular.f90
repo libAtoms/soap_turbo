@@ -1,13 +1,13 @@
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ! HND X
-! HND X   GAP_turbo
+! HND X   soap_turbo
 ! HND X
-! HND X   GAP_turbo is copyright (c) 2019-2021, Miguel A. Caro
+! HND X   soap_turbo is copyright (c) 2019-2021, Miguel A. Caro
 ! HND X
-! HND X   GAP_turbo is published and distributed under the
+! HND X   soap_turbo is published and distributed under the
 ! HND X      Academic Software License v1.0 (ASL)
 ! HND X
-! HND X   GAP_turbo is distributed in the hope that it will be useful for non-commercial
+! HND X   soap_turbo is distributed in the hope that it will be useful for non-commercial
 ! HND X   academic research, but WITHOUT ANY WARRANTY; without even the implied
 ! HND X   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ! HND X   ASL for more details.
