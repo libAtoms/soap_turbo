@@ -34,7 +34,7 @@ module soap_turbo_compress
 
 ! Input variables
   integer, intent(in) :: alpha_max(:), l_max
-  character*64, intent(in) :: compress_mode, what_to_do
+  character(*), intent(in) :: compress_mode, what_to_do
 
 ! Input-Output variables
   integer, intent(inout) :: dim, indices(:)
