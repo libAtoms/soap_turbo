@@ -23,7 +23,7 @@
 ! HND X
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-module functions
+module soap_turbo_functions
 
   contains
 
@@ -339,4 +339,4 @@ module functions
 
 
 
-end module functions
+end module soap_turbo_functions

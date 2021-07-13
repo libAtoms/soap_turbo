@@ -24,9 +24,9 @@
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
-module radial
+module soap_turbo_radial
 
-  use functions
+  use soap_turbo_functions
 
   contains
 
@@ -902,4 +902,4 @@ module radial
 
 
 
-end module radial
+end module soap_turbo_radial

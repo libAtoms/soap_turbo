@@ -23,10 +23,10 @@
 ! HND X
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-module soap_desc
+module soap_turbo_desc
 
-  use radial
-  use angular
+  use soap_turbo_radial
+  use soap_turbo_angular
 
   contains
 
@@ -812,4 +812,4 @@ module soap_desc
 !**************************************************************************
 
 
-end module soap_desc
+end module soap_turbo_desc

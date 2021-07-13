@@ -23,7 +23,7 @@
 ! HND X
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-module angular
+module soap_turbo_angular
 
   contains
 
@@ -456,4 +456,4 @@ module angular
 
 
 
-end module angular
+end module soap_turbo_angular
