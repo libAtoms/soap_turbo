@@ -60,7 +60,7 @@ module soap_turbo_desc
 
 !-------------------
 ! Internal variables
-  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
+  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:), cnk_slice(:)
   complex*16, allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
   complex*16, allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
   complex*16, allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
@@ -70,7 +70,7 @@ module soap_turbo_desc
   real*8, allocatable :: W_temp(:,:), S_temp(:,:)
   real*8, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
   real*8, allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
-  real*8, allocatable :: radial_exp_coeff_der(:,:), cnk_slice(:)
+  real*8, allocatable :: radial_exp_coeff_der(:,:)
   real*8 :: amplitude, multiplicity, pi, rcut_max
   real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
