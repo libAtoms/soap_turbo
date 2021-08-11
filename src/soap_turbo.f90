@@ -75,7 +75,7 @@ module soap_turbo_desc
   real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
 
-  integer, allocatable :: i_beg(:), i_end(:)
+  integer, allocatable :: i_beg(:), i_end(:), starting_index(:)
   integer, save :: n_max_prev
   integer :: k_max, n_max
   integer :: i, counter, j, k, n_soap, k2, k3, n, l, m, np, counter2
@@ -340,11 +340,22 @@ module soap_turbo_desc
   if( do_timing )then
     call cpu_time(time1)
   end if
+
+  if( allocated( starting_index ) )deallocate( starting_index )
+  allocate( starting_index(1:n_sites) )
   k2 = 0
   do i = 1, n_sites
+    starting_index(i) = k2
     do j = 1, n_neigh(i)
       k2 = k2 + 1
-!$omp parallel do private(n, l, m, k) schedule(static,1)
+    end do
+  end do
+
+!$omp parallel do private(i, k2, j, n, l, m, k, amplitude) schedule(static,1)
+  do i = 1, n_sites
+    k2 = starting_index(i)
+    do j = 1, n_neigh(i)
+      k2 = k2 + 1
       do n = 1, n_max
         do l = 0, l_max
           do m = 0, l
@@ -354,7 +365,6 @@ module soap_turbo_desc
           end do
         end do
       end do
-!$omp end parallel do
     end do
     do k = 1, species_multiplicity(i)
       j = species(k, i)
@@ -374,6 +384,7 @@ module soap_turbo_desc
       end if
     end do
   end do
+!$omp end parallel do
 
 ! Do derivatives
   if( do_derivatives )then
