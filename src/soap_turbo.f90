@@ -70,7 +70,7 @@ module soap_turbo_desc
   real*8, allocatable :: W_temp(:,:), S_temp(:,:)
   real*8, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
   real*8, allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
-  real*8, allocatable :: radial_exp_coeff_der(:,:)
+  real*8, allocatable :: radial_exp_coeff_der(:,:), cnk_slice(:)
   real*8 :: amplitude, multiplicity, pi, rcut_max
   real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
@@ -342,7 +342,9 @@ module soap_turbo_desc
   end if
 
   if( allocated( starting_index ) )deallocate( starting_index )
+  if( allocated( cnk_slice ) )deallocate( cnk_slice )
   allocate( starting_index(1:n_sites) )
+  allocate( cnk_slice(1:1 + l_max*(l_max+1)/2 + l_max) )
   k2 = 0
   do i = 1, n_sites
     starting_index(i) = k2
@@ -351,19 +353,22 @@ module soap_turbo_desc
     end do
   end do
 
-!$omp parallel do private(i, k2, j, n, l, m, k, amplitude) schedule(static,1)
+!$omp parallel do private(i, k2, j, n, l, m, k, amplitude, cnk_slice) schedule(static,1)
   do i = 1, n_sites
     k2 = starting_index(i)
     do j = 1, n_neigh(i)
       k2 = k2 + 1
       do n = 1, n_max
+        cnk_slice = 0.d0
         do l = 0, l_max
           do m = 0, l
             k = 1 + l*(l+1)/2 + m
 !           It is messy with the prefactor in spherical harmonics but we need to be sure because of the central atom below
-            cnk(k, n, i) = cnk(k, n, i) + 4.d0*pi * radial_exp_coeff(n, k2) * angular_exp_coeff(k, k2)
+!            cnk(k, n, i) = cnk(k, n, i) + 4.d0*pi * radial_exp_coeff(n, k2) * angular_exp_coeff(k, k2)
+            cnk_slice(k) = cnk_slice(k) + 4.d0*pi * radial_exp_coeff(n, k2) * angular_exp_coeff(k, k2)
           end do
         end do
+        cnk(:, n, i) = cnk_slice(:)
       end do
     end do
     do k = 1, species_multiplicity(i)
