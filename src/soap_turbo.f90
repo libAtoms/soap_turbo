@@ -60,10 +60,11 @@ module soap_turbo_desc
 
 !-------------------
 ! Internal variables
-  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:), cnk_slice(:)
+  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
   complex*16, allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
   complex*16, allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
   complex*16, allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
+  complex*16, allocatable :: radial_exp_coeff_cmplx(:,:)
 
   real*8, allocatable, save :: W(:,:), S(:,:), multiplicity_array(:)
   real*8, allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
@@ -342,35 +343,24 @@ module soap_turbo_desc
   end if
 
   if( allocated( starting_index ) )deallocate( starting_index )
-  if( allocated( cnk_slice ) )deallocate( cnk_slice )
   allocate( starting_index(1:n_sites) )
-  allocate( cnk_slice(1:1 + l_max*(l_max+1)/2 + l_max) )
-  k2 = 0
-  do i = 1, n_sites
-    starting_index(i) = k2
-    do j = 1, n_neigh(i)
-      k2 = k2 + 1
-    end do
+  starting_index(1) = 0
+  do i = 2, n_sites
+    starting_index(i) = starting_index(i-1) + n_neigh(i-1)
   end do
 
-!$omp parallel do private(i, k2, j, n, l, m, k, amplitude, cnk_slice) schedule(static,1)
   do i = 1, n_sites
     k2 = starting_index(i)
-    do j = 1, n_neigh(i)
-      k2 = k2 + 1
-      do n = 1, n_max
-        cnk_slice = 0.d0
-        do l = 0, l_max
-          do m = 0, l
-            k = 1 + l*(l+1)/2 + m
-!           It is messy with the prefactor in spherical harmonics but we need to be sure because of the central atom below
-!            cnk(k, n, i) = cnk(k, n, i) + 4.d0*pi * radial_exp_coeff(n, k2) * angular_exp_coeff(k, k2)
-            cnk_slice(k) = cnk_slice(k) + 4.d0*pi * radial_exp_coeff(n, k2) * angular_exp_coeff(k, k2)
-          end do
-        end do
-        cnk(:, n, i) = cnk_slice(:)
-      end do
-    end do
+
+    if( allocated( radial_exp_coeff_cmplx ) )deallocate( radial_exp_coeff_cmplx )
+    allocate( radial_exp_coeff_cmplx(1:n_max, k2+1:k2+n_neigh(i)) )
+    radial_exp_coeff_cmplx = radial_exp_coeff(1:n_max, k2+1:k2+n_neigh(i))
+
+    call zgemm("n", "t", k_max, n_max, n_neigh(i), pi*(4.d0, 0.d0), &
+               angular_exp_coeff(1:k_max, k2+1:k2+n_neigh(i)), k_max, &
+               radial_exp_coeff_cmplx, &
+               n_max, (0.d0, 0.d0), cnk(1:k_max, 1:n_max, i), k_max)
+
     do k = 1, species_multiplicity(i)
       j = species(k, i)
       if( basis == "poly3gauss" .and. central_weight(j) /= 0.d0 )then
@@ -389,7 +379,6 @@ module soap_turbo_desc
       end if
     end do
   end do
-!$omp end parallel do
 
 ! Do derivatives
   if( do_derivatives )then
@@ -673,12 +662,14 @@ module soap_turbo_desc
     complex*16 :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), angular_exp_coeff_pol_der(:,:)
     complex*16, intent(out) :: cnk_rad_der(:,:,:), cnk_azi_der(:,:,:), cnk_pol_der(:,:,:)
     integer, intent(in) :: n_sites, n_max, l_max, n_neigh(:)
-    integer :: k2, i, j, n, m, k, l
+    integer :: k2, i, j, n, m, k, l, k_max
     real*8 :: pi
 
     pi = dacos(-1.d0)
+    k_max = 1 + l_max*(l_max+1)/2 + l_max
 
 
+!   I COULD USE AN OUTER PRODUCT BLAS ROUTINE TO DO THIS MORE EFFICIENTLY!!!!
     k2 = 0
     do i = 1, n_sites
 !     We could skip j = 1, which is the central atom
@@ -686,9 +677,10 @@ module soap_turbo_desc
         k2 = k2 + 1
         if( rjs(k2) < cutoff )then
           do n = 1, n_max
-            do l = 0, l_max
-              do m = 0, l
-                k = 1 + l*(l+1)/2 + m
+            do k = 1, k_max
+!            do l = 0, l_max
+!              do m = 0, l
+!                k = 1 + l*(l+1)/2 + m
 !               Radial derivatives:
                 cnk_rad_der(k, n, k2) = 4.d0*pi * ( angular_exp_coeff(k, k2) * radial_exp_coeff_der(n, k2) + &
                                          angular_exp_coeff_rad_der(k, k2) * radial_exp_coeff(n, k2) )
@@ -696,7 +688,8 @@ module soap_turbo_desc
                 cnk_azi_der(k, n, k2) = 4.d0*pi * angular_exp_coeff_azi_der(k, k2) * radial_exp_coeff(n, k2)
 !               Polar angle derivatives:
                 cnk_pol_der(k, n, k2) = 4.d0*pi * angular_exp_coeff_pol_der(k, k2) * radial_exp_coeff(n, k2)
-              end do
+!              end do
+!            end do
             end do
           end do
         end if
