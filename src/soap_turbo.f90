@@ -792,13 +792,18 @@ module soap_turbo_desc
       do k = 1, n_neigh(i)
         k2 = k2 + 1
         j = neighbors_list(k2)
-        if( k == 1 )then
+!        if( k == 1 )then
+!          do i2 = 1, species_multiplicity_supercell(i)
+!            mask_species(k2, species_supercell(i2, j)) = .true.
+!          end do
+!        else
+!          do i2 = 1, species_multiplicity_supercell(i)
+!            mask_species(k2, species_supercell(i2, j)) = .true.
+!          end do
           do i2 = 1, species_multiplicity_supercell(i)
-            mask_species(k2, species_supercell(i2, j)) = .true.
-          end do
-        else
-          do i2 = 1, species_multiplicity_supercell(i)
-            mask_species(k2, species_supercell(i2, j)) = .true.
+            if( species_supercell(i2, j) > 0 )then
+              mask_species(k2, species_supercell(i2, j)) = .true.
+            end if
           end do
         end if
       end do
