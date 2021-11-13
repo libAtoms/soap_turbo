@@ -800,12 +800,12 @@ module soap_turbo_desc
 !          do i2 = 1, species_multiplicity_supercell(i)
 !            mask_species(k2, species_supercell(i2, j)) = .true.
 !          end do
+!        end if
           do i2 = 1, species_multiplicity_supercell(i)
             if( species_supercell(i2, j) > 0 )then
               mask_species(k2, species_supercell(i2, j)) = .true.
             end if
           end do
-        end if
       end do
     end do
 
