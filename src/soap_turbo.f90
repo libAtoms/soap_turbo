@@ -362,7 +362,6 @@ module soap_turbo_desc
   do i = 1, n_sites
     do j = 1, n_neigh(i)
       k2 = k2 + 1
-!$omp parallel do private(n, l, m, k) schedule(static,1)
       do n = 1, n_max
         do l = 0, l_max
           do m = 0, l
@@ -372,7 +371,6 @@ module soap_turbo_desc
           end do
         end do
       end do
-!$omp end parallel do
     end do
     do k = 1, species_multiplicity(i)
       j = species(k, i)
