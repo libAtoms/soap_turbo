@@ -28,7 +28,8 @@ module soap_turbo_compress
   contains
 
 !**************************************************************************
-  subroutine get_compress_indices( compress_mode, alpha_max, l_max, dim, indices, what_to_do )
+!  subroutine get_compress_indices( compress_mode, alpha_max, l_max, dim, indices, what_to_do )
+  subroutine get_compress_indices( compress_mode, alpha_max, l_max, dim, P_nonzero, P_i, P_j, P_el, what_to_do )
 
   implicit none
 
@@ -37,7 +38,9 @@ module soap_turbo_compress
   character(*), intent(in) :: compress_mode, what_to_do
 
 ! Input-Output variables
-  integer, intent(inout) :: dim, indices(:)
+!  integer, intent(inout) :: dim, indices(:)
+  real*8, intent(inout) :: P_el(:)
+  integer, intent(inout) :: dim, P_nonzero, P_i(:), P_j(:)
 
 ! Internal vairables
   integer, allocatable :: pivot(:)
@@ -69,7 +72,13 @@ module soap_turbo_compress
     k = 1
 
     if( set_indices )then
-      indices = 0
+!      indices = 0
+      allocate( P_i(1:P_nonzero) )
+      allocate( P_j(1:P_nonzero) )
+      allocate( P_el(1:P_nonzero) )
+      P_i = 0
+      P_j = 0
+      P_el = 0.d0
     end if
 
     do n = 1, n_max    
@@ -78,14 +87,20 @@ module soap_turbo_compress
           if( any(n == pivot) .or. any(m == pivot) )then
             counter = counter + 1
             if( set_indices )then
-              indices(counter) = k
+!              indices(counter) = k
+              P_i(counter) = counter
+              P_j(counter) = k
+              P_el(counter) = 1.d0
             end if
           end if
           k = k + 1
         end do
       end do
     end do
+!   For trivial compression the SOAP vector dimension and the number of non-zero elements
+!   in the transformation matrix are the same
     dim = counter
+    P_nonzero = counter
     deallocate( pivot )
   else
     write(*,*) "ERROR: I don't understand compress_mode =", compress_mode
