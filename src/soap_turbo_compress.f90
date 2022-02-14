@@ -2,7 +2,7 @@
 ! HND X
 ! HND X   soap_turbo
 ! HND X
-! HND X   soap_turbo is copyright (c) 2019-2021, Miguel A. Caro
+! HND X   soap_turbo is copyright (c) 2019-2022, Miguel A. Caro
 ! HND X
 ! HND X   soap_turbo is published and distributed under the
 ! HND X      Academic Software License v1.0 (ASL)
@@ -28,7 +28,6 @@ module soap_turbo_compress
   contains
 
 !**************************************************************************
-!  subroutine get_compress_indices( compress_mode, alpha_max, l_max, dim, indices, what_to_do )
   subroutine get_compress_indices( compress_mode, alpha_max, l_max, dim, P_nonzero, P_i, P_j, P_el, what_to_do )
 
   implicit none
@@ -38,7 +37,6 @@ module soap_turbo_compress
   character(*), intent(in) :: compress_mode, what_to_do
 
 ! Input-Output variables
-!  integer, intent(inout) :: dim, indices(:)
   real*8, intent(inout) :: P_el(:)
   integer, intent(inout) :: dim, P_nonzero, P_i(:), P_j(:)
 
@@ -72,10 +70,6 @@ module soap_turbo_compress
     k = 1
 
     if( set_indices )then
-!      indices = 0
-      allocate( P_i(1:P_nonzero) )
-      allocate( P_j(1:P_nonzero) )
-      allocate( P_el(1:P_nonzero) )
       P_i = 0
       P_j = 0
       P_el = 0.d0
@@ -87,7 +81,6 @@ module soap_turbo_compress
           if( any(n == pivot) .or. any(m == pivot) )then
             counter = counter + 1
             if( set_indices )then
-!              indices(counter) = k
               P_i(counter) = counter
               P_j(counter) = k
               P_el(counter) = 1.d0

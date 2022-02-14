@@ -2,7 +2,7 @@
 ! HND X
 ! HND X   soap_turbo
 ! HND X
-! HND X   soap_turbo is copyright (c) 2019-2021, Miguel A. Caro
+! HND X   soap_turbo is copyright (c) 2019-2022, Miguel A. Caro
 ! HND X
 ! HND X   soap_turbo is published and distributed under the
 ! HND X      Academic Software License v1.0 (ASL)
@@ -35,7 +35,6 @@ module soap_turbo_desc
                       thetas, phis, alpha_max, l_max, rcut_hard, rcut_soft, nf, global_scaling, atom_sigma_r, &
                       atom_sigma_r_scaling, atom_sigma_t, atom_sigma_t_scaling, &
                       amplitude_scaling, radial_enhancement, central_weight, basis, scaling_mode, do_timing, &
-!                      do_derivatives, compress_soap, compress_soap_indices, soap, soap_cart_der)
                       do_derivatives, compress_soap, compress_P_nonzero, compress_P_i, compress_P_j, &
                       compress_P_el, soap, soap_cart_der)
 
@@ -50,7 +49,6 @@ module soap_turbo_desc
   real*8, intent(in) :: compress_P_el(:)
 
   integer, intent(in) :: n_species, radial_enhancement, species(:,:), species_multiplicity(:)
-!  integer, intent(in) :: n_sites, n_neigh(:), l_max, n_atom_pairs, alpha_max(:), compress_soap_indices(:)
   integer, intent(in) :: n_sites, n_neigh(:), l_max, n_atom_pairs, alpha_max(:), compress_P_nonzero, &
                          compress_P_i(:), compress_P_j(:)
 
@@ -76,7 +74,7 @@ module soap_turbo_desc
   real*8, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
   real*8, allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
   real*8, allocatable :: radial_exp_coeff_der(:,:)
-  real*8, allocatable :: this_soap(:)
+  real*8, allocatable :: this_soap(:), this_soap_rad_der(:), this_soap_azi_der(:), this_soap_pol_der(:)
   real*8 :: amplitude, multiplicity, pi, rcut_max
   real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
@@ -209,9 +207,7 @@ module soap_turbo_desc
   allocate( cnk( 1:k_max, 1:n_max, 1:n_sites) )
   cnk = 0.d0
 ! Handle SOAP compression here
-!  allocate( skip_soap_component(0:l_max, 1:n_max, 1:n_max) )
   allocate( skip_soap_component_flattened(1:n_soap_uncompressed) )
-!  skip_soap_component = .false.
   skip_soap_component_flattened = .false.
   if( compress_soap )then
     if( do_timing )then
@@ -223,23 +219,6 @@ module soap_turbo_desc
     do i = 1, compress_P_nonzero
       skip_soap_component_flattened(compress_P_j(i)) = .false.
     end do
-!   Old way to compress - CLEAN UP
-!    skip_soap_component = .true.
-!    n_soap = size(compress_soap_indices)
-!    counter = 0
-!    do n = 1, n_max
-!      do np = n, n_max
-!        do l = 0, l_max
-!          counter = counter + 1
-!          do i = 1, n_soap
-!            if( compress_soap_indices(i) == counter )then
-!              skip_soap_component(l, np, n) = .false.
-!              exit
-!            end if
-!          end do
-!        end do
-!      end do
-!    end do
 
     if( do_timing )then
       call cpu_time(time2)
@@ -424,7 +403,6 @@ module soap_turbo_desc
       do np = n, n_max
         do l = 0, l_max
           counter = counter + 1
-!          if( skip_soap_component(l, np, n) )cycle
           if( skip_soap_component_flattened(counter) )cycle
           do m = 0, l
             counter2 = counter2 + 1
@@ -442,7 +420,6 @@ module soap_turbo_desc
       do np = n, n_max
         do l = 0, l_max
           counter = counter + 1
-!          if( skip_soap_component(l, np, n) )cycle
           if( skip_soap_component_flattened(counter) )cycle
           do m = 0, l
             counter2 = counter2 + 1
@@ -470,8 +447,6 @@ module soap_turbo_desc
     do n = 1, n_max
       do np = n, n_max
         do l = 0, l_max
-!          if( skip_soap_component(l, np, n) )cycle
-!          counter = counter+1
           counter = counter+1
           if( skip_soap_component_flattened(counter) )cycle
           do m = 0, l
@@ -485,7 +460,6 @@ module soap_turbo_desc
 !              multiplicity = multiplicity * 2.d0
 !            end if
             multiplicity = multiplicity_array(counter2)
-!            soap(counter, i) = soap(counter, i) + multiplicity * real(cnk(k, n, i) * conjg(cnk(k, np, i)))
             this_soap(counter) = this_soap(counter) + multiplicity * real(cnk(k, n, i) * conjg(cnk(k, np, i)))
           end do
         end do
@@ -527,8 +501,6 @@ module soap_turbo_desc
         do n = 1, n_max
           do np = n, n_max
             do l = 0, l_max
-!              if( skip_soap_component(l, np, n) )cycle
-!              counter = counter+1
               counter = counter+1
               if( skip_soap_component_flattened(counter) )cycle
               do m = 0, l
@@ -544,12 +516,6 @@ module soap_turbo_desc
 !                  multiplicity = multiplicity * 2.d0
 !                end if
                 multiplicity = multiplicity_array(counter2)
-!                soap_rad_der(counter, k2) = soap_rad_der(counter, k2) + multiplicity * real( cnk_rad_der(k, n, k2) * &
-!                                            conjg(cnk(k, np, i)) + cnk(k, n, i) * conjg(cnk_rad_der(k, np, k2)) )
-!                soap_azi_der(counter, k2) = soap_azi_der(counter, k2) + multiplicity * real( cnk_azi_der(k, n, k2) * &
-!                                            conjg(cnk(k, np, i)) + cnk(k, n, i) * conjg(cnk_azi_der(k, np, k2)) )
-!                soap_pol_der(counter, k2) = soap_pol_der(counter, k2) + multiplicity * real( cnk_pol_der(k, n, k2) * &
-!                                            conjg(cnk(k, np, i)) + cnk(k, n, i) * conjg(cnk_pol_der(k, np, k2)) )
                 this_soap_rad_der(counter) = this_soap_rad_der(counter) + multiplicity * real( cnk_rad_der(k, n, k2) * &
                                             conjg(cnk(k, np, i)) + cnk(k, n, i) * conjg(cnk_rad_der(k, np, k2)) )
                 this_soap_azi_der(counter) = this_soap_azi_der(counter) + multiplicity * real( cnk_azi_der(k, n, k2) * &
@@ -659,7 +625,6 @@ module soap_turbo_desc
 
   deallocate( eimphi, preflm, plm_array, prefl, prefm, fact_array, radial_exp_coeff, angular_exp_coeff, cnk, &
               i_beg, i_end, do_central, sqrt_dot_p )
-!  deallocate( skip_soap_component )
   deallocate( skip_soap_component_flattened )
   if( do_derivatives )then
     deallocate( radial_exp_coeff_der, angular_exp_coeff_rad_der, soap_rad_der, soap_azi_der, soap_pol_der, &
