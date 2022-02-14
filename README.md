@@ -2,7 +2,7 @@
 
 ## Legal and copyright
 
-**soap_turbo** is copyright (c) 2019-2021, Miguel A. Caro
+**soap_turbo** is copyright (c) 2019-2022, Miguel A. Caro
 
 **soap_turbo** is published and distributed under the
 Academic Software License v1.0 (ASL)

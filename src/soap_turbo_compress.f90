@@ -23,7 +23,7 @@
 ! HND X
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-module soap_turbo_compress
+module soap_turbo_compress_module
 
   contains
 
@@ -103,4 +103,4 @@ module soap_turbo_compress
   end subroutine
 !**************************************************************************
 
-end module
+end module soap_turbo_compress_module
