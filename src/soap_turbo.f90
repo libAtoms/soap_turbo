@@ -467,9 +467,13 @@ module soap_turbo_desc
     end do
 !   Linear transformation (it assumes sparse P; it may benefit from using a sparse linear algebra routine
 !   for large dimensions and BLAS routines if P is dense)
-    do k = 1, compress_P_nonzero
-      soap(compress_P_i(k), i) = soap(compress_P_i(k), i) + compress_P_el(k) * this_soap(compress_P_j(k))
-    end do
+    if( compress_soap )then
+      do k = 1, compress_P_nonzero
+        soap(compress_P_i(k), i) = soap(compress_P_i(k), i) + compress_P_el(k) * this_soap(compress_P_j(k))
+      end do
+    else
+      soap(:,i) = this_soap(:)
+    end if
     sqrt_dot_p(i) = dsqrt(dot_product(soap(1:n_soap, i), soap(1:n_soap, i)))
 !   This is to avoid NaNs when the SOAP sphere is empty
     if( sqrt_dot_p(i) < 1.d-5 )then
@@ -526,14 +530,20 @@ module soap_turbo_desc
             end do
           end do
         end do
-        do k = 1, compress_P_nonzero
-          soap_rad_der(compress_P_i(k), k2) = soap_rad_der(compress_P_i(k), k2) + compress_P_el(k) * &
-                                              this_soap_rad_der(compress_P_j(k))
-          soap_azi_der(compress_P_i(k), k2) = soap_azi_der(compress_P_i(k), k2) + compress_P_el(k) * &
-                                              this_soap_azi_der(compress_P_j(k))
-          soap_pol_der(compress_P_i(k), k2) = soap_pol_der(compress_P_i(k), k2) + compress_P_el(k) * &
-                                              this_soap_pol_der(compress_P_j(k))
-        end do
+        if( compress_soap )then
+          do k = 1, compress_P_nonzero
+            soap_rad_der(compress_P_i(k), k2) = soap_rad_der(compress_P_i(k), k2) + compress_P_el(k) * &
+                                                this_soap_rad_der(compress_P_j(k))
+            soap_azi_der(compress_P_i(k), k2) = soap_azi_der(compress_P_i(k), k2) + compress_P_el(k) * &
+                                                this_soap_azi_der(compress_P_j(k))
+            soap_pol_der(compress_P_i(k), k2) = soap_pol_der(compress_P_i(k), k2) + compress_P_el(k) * &
+                                                this_soap_pol_der(compress_P_j(k))
+          end do
+        else
+          soap_rad_der(:,k2) = this_soap_rad_der(:)
+          soap_azi_der(:,k2) = this_soap_azi_der(:)
+          soap_pol_der(:,k2) = this_soap_pol_der(:)
+        end if
 !****************************
 ! Uncomment for detailed timing check
 !
