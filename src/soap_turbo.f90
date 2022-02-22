@@ -80,11 +80,12 @@ module soap_turbo_desc
             memory_time, basis_time
 
   integer, allocatable :: i_beg(:), i_end(:)
-  integer, save :: n_max_prev
+  integer, save :: n_max_prev, l_max_prev
   integer :: k_max, n_max
   integer :: i, counter, j, k, n_soap, k2, k3, n, l, m, np, counter2, n_soap_uncompressed
   logical, allocatable :: do_central(:), skip_soap_component(:,:,:), skip_soap_component_flattened(:)
-  logical, save :: recompute_basis = .true.
+  logical, allocatable, save :: skip_soap_component_flattened_prev(:)
+  logical, save :: recompute_basis = .true., recompute_multiplicity_array = .true.
 !-------------------
 
   if( do_timing )then
@@ -160,9 +161,9 @@ module soap_turbo_desc
     n_max = n_max + alpha_max(i)
   end do
   if( n_max_prev /= n_max )then
-    n_max_prev = n_max
     recompute_basis = .true.
   end if
+  n_max_prev = n_max
   if( recompute_basis )then
     if( allocated(W) .or. allocated(S) )then
       deallocate(W, S)
@@ -191,6 +192,7 @@ module soap_turbo_desc
       deallocate( S_temp, W_temp )
     end do
   end if
+  recompute_basis = .false.
 
   if( do_timing )then
     call cpu_time(time2)
@@ -396,7 +398,26 @@ module soap_turbo_desc
   end if
 
 ! Create the multiplicity array
-  if( recompute_basis )then
+  if( n_max_prev /= n_max .or. l_max_prev /= l_max )then
+    recompute_multiplicity_array = .true.
+  end if
+  l_max_prev = l_max
+  if( allocated( skip_soap_component_flattened_prev ) )then
+    if( size(skip_soap_component_flattened_prev) /= size(skip_soap_component_flattened) )then
+      recompute_multiplicity_array = .true.
+      deallocate( skip_soap_component_flattened_prev )
+      allocate( skip_soap_component_flattened_prev(1:size(skip_soap_component_flattened)) )
+      skip_soap_component_flattened_prev = skip_soap_component_flattened
+    else if( any(skip_soap_component_flattened_prev .neqv. skip_soap_component_flattened) )then
+      recompute_multiplicity_array = .true.
+      skip_soap_component_flattened_prev = skip_soap_component_flattened
+    end if
+  else
+    allocate( skip_soap_component_flattened_prev(1:size(skip_soap_component_flattened)) )
+    skip_soap_component_flattened_prev = skip_soap_component_flattened
+  end if
+     
+  if( recompute_multiplicity_array )then
     counter = 0
     counter2 = 0
     do n = 1, n_max
@@ -436,7 +457,7 @@ module soap_turbo_desc
       end do
     end do
   end if
-  recompute_basis = .false.
+  recompute_multiplicity_array = .false.
 
 
   allocate( this_soap(1:n_soap_uncompressed) )
