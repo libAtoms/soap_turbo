@@ -44,20 +44,20 @@ provided within single brackets, {a b c}, because of the way that **soap_turbo**
 they need to be provided within double brackets, {{a b c}}. In quippy single brackets are
 enough.
 
-| soap | soap_turbo | Info | Example |
-| --- | --- | --- | --- |
-| n_max (integer scalar) | alpha_max (integer array) | One per species. Should not be > 12 because of numerial instabilities. A maximum of 8 is a safe bet. | alpha_max={{8 8 8}} |
-| l_max (integer scalar) | l_max (integer array) | | l_max=8 |
-| atom_sigma (real scalar) | atom_sigma_r (real array) <br> atom_sigma_t (real array) | One per species. "r" for radial and "t" for angular. | atom_sigma_r={{0.5 0.5 0.5}} <br> atom_sigma_t={{0.5 0.5 0.5}} |
-| n/a | atom_sigma_r_scaling (real array) <br> atom_sigma_t_scaling (real array) | One per species. "r" for radial and "t" for angular. | atom_sigma_r_scaling={{0. 0. 0.}} <br> atom_sigma_t_scaling={{0. 0. 0.}} |
-| n/a | radial_enhancement (integer) | Can be 0, 1 or 2. | radial_enhancement=1 |
-| n/a | amplitude_scaling (real array) | Any real, one per species. > 0 and not too large (e.g., not greater than 2-3) makes most sense. | amplitude_scaling={{1. 1. 1.}} |
-| central_weight (real) | central_weight (real array) | Any real, one per species. > 0 and not too large (e.g., not greater than 2-3) makes most sense. | central_weight={{1. 1. 1.}} |
-| n/a | basis (string) | Can be "poly3" (default) or "poly3gauss" | basis="poly3gauss" |
-| n/a | compress_mode (string) | Not required but recommended. Detailed documentation coming up. | compress_mode="trivial" |
-| cutoff (real) | rcut_hard (real) | | rcut_hard=5.0 |
-| transition_width (real) | rcut_soft (real) | IMPORTANT: rcut_soft is the rcut_hard - transision_width equivalent. | rcut_soft=4.5 |
-| n_scpecies (integer) | n_species (integer) | | n_species=3 |
-| species_Z (integer array) | species_Z (integer array) | | species_Z={{1 6 8}} |
-| n/a | central_index (integer) | Position in species_Z array occupied by the central atom species of the SOAP environment. I.e., each soap_turbo definition only sees central species of this type. | central_index=2 |
-| add_species (logical) | add_species (logical) | IMPORTANT: for soap_turbo there is currently no recipe to build the descriptor for all species automatically. It must be explicitly set to false. | add_species=F |
+| soap | soap_turbo | Default | Info | Example |
+| --- | --- | --- | --- | --- |
+| n_max (integer scalar) | alpha_max (integer array) | No default - required | One per species. Should not be > 12 because of numerial instabilities. A maximum of 8 is a safe bet. | alpha_max={{8 8 8}} |
+| l_max (integer scalar) | l_max (integer array) | No default - required | | l_max=8 |
+| atom_sigma (real scalar) | atom_sigma_r (real array) <br> atom_sigma_t (real array) | No default - required | One per species. "r" for radial and "t" for angular. | atom_sigma_r={{0.5 0.5 0.5}} <br> atom_sigma_t={{0.5 0.5 0.5}} |
+| n/a | atom_sigma_r_scaling (real array) <br> atom_sigma_t_scaling (real array) | No default - required | One per species. "r" for radial and "t" for angular. | atom_sigma_r_scaling={{0. 0. 0.}} <br> atom_sigma_t_scaling={{0. 0. 0.}} |
+| n/a | radial_enhancement (integer) | 0 | Can be 0, 1 or 2. | radial_enhancement=1 |
+| n/a | amplitude_scaling (real array) | No default - required | Any real, one per species. > 0 and not too large (e.g., not greater than 2-3) makes most sense. | amplitude_scaling={{1. 1. 1.}} |
+| central_weight (real) | central_weight (real array) | No default - required | Any real, one per species. > 0 and not too large (e.g., not greater than 2-3) makes most sense. | central_weight={{1. 1. 1.}} |
+| n/a | basis (string) | "poly3" | Can be "poly3" (default) or "poly3gauss" | basis="poly3gauss" |
+| n/a | compress_mode (string) | "None" | Not required but recommended. Detailed documentation coming up. | compress_mode="trivial" |
+| cutoff (real) | rcut_hard (real) | No default - required | | rcut_hard=5.0 |
+| transition_width (real) | rcut_soft (real) | No default - required | IMPORTANT: rcut_soft is the rcut_hard - transision_width equivalent. | rcut_soft=4.5 |
+| n_scpecies (integer) | n_species (integer) | 1 | | n_species=3 |
+| species_Z (integer array) | species_Z (integer array) | No default - required | | species_Z={{1 6 8}} |
+| n/a | central_index (integer) | 1 | Position in species_Z array occupied by the central atom species of the SOAP environment. I.e., each soap_turbo definition only sees central species of this type. | central_index=2 |
+| add_species (logical) | add_species (logical) | No default - set to F | IMPORTANT: for soap_turbo there is currently no recipe to build the descriptor for all species automatically. It must be explicitly set to false. | add_species=F |
