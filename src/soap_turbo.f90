@@ -204,6 +204,7 @@ module soap_turbo_desc
 
 ! This is for the expansion coefficients and the soap vectors
   allocate( radial_exp_coeff(1:n_max, 1:n_atom_pairs) )
+  radial_exp_coeff = 0.d0
   allocate( angular_exp_coeff(1:k_max, 1:n_atom_pairs) )
   angular_exp_coeff = 0.d0
   allocate( cnk( 1:k_max, 1:n_max, 1:n_sites) )
