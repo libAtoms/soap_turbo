@@ -2,7 +2,7 @@
 
 ## Legal and copyright
 
-**soap_turbo** is copyright (c) 2019-2022, Miguel A. Caro
+**soap_turbo** is copyright (c) 2019-2023, Miguel A. Caro
 
 **soap_turbo** is published and distributed under the
 Academic Software License v1.0 (ASL)
@@ -60,4 +60,4 @@ enough.
 | n_scpecies (integer) | n_species (integer) | 1 | | n_species=3 |
 | species_Z (integer array) | species_Z (integer array) | No default - required | | species_Z={{1 6 8}} |
 | n/a | central_index (integer) | 1 | Position in species_Z array occupied by the central atom species of the SOAP environment. I.e., each soap_turbo definition only sees central species of this type. | central_index=2 |
-| add_species (logical) | add_species (logical) | No default - set to F | IMPORTANT: for soap_turbo there is currently no recipe to build the descriptor for all species automatically. It must be explicitly set to false. | add_species=F |
+| add_species (logical) | add_species (logical) | No default - required setting it to F (add add_species=F to your string!) | IMPORTANT: for soap_turbo there is currently no recipe to build the descriptor for all species automatically. It must be explicitly set to false. | add_species=F |
