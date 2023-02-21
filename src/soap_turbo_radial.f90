@@ -106,7 +106,7 @@ module soap_turbo_radial
       write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 10 .and. print_message )then
+    else if( alpha_max > 10 )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
@@ -435,7 +435,7 @@ module soap_turbo_radial
       write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 11 .and. print_message )then
+    else if( alpha_max > 11 )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
