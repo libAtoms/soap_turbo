@@ -99,7 +99,7 @@ module soap_turbo_radial
     if( alpha_max > 7 .and. print_message )then
       print_message = .false.
       write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3 <---- WARNING"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
       write(*,*) "alpha_max > 10 this warning will turn into an error. You can do your own"
       write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
@@ -108,7 +108,7 @@ module soap_turbo_radial
       write(*,*) "-------------------------------------------------------------------------------"
     else if( alpha_max > 10 )then
       write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3"
+      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3   <---- ERROR"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
       write(*,*) "alpha_max > 10 the instabilities are too large to proceed. You can do your own"
       write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
@@ -428,7 +428,7 @@ module soap_turbo_radial
 !   catastrophic at alpha_max = 13.
     if( alpha_max > 8 .and. print_message )then
       write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the       <---- WARNING"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
       write(*,*) "alpha_max > 11 this warning will turn into an error. You can do your own"
       write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
@@ -437,7 +437,7 @@ module soap_turbo_radial
       write(*,*) "-------------------------------------------------------------------------------"
     else if( alpha_max > 11 )then
       write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the"
+      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the         <---- ERROR"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
       write(*,*) "alpha_max > 11 the instabilities are too large to proceed. You can do your own"
       write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
