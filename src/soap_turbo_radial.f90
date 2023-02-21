@@ -72,11 +72,7 @@ module soap_turbo_radial
                                                      radial_enhancement, do_derivatives, do_central, &
                                                      central_weight, exp_coeff, exp_coeff_der)
 !   Expansion coefficients using the polynomial basis with smooth filter
-!
-!   Apparently, with this basis the W matrix becomes complex for 12 and higher
-!   basis functions, so alpha_max should not be higher than 11.
-!   ADD ERROR MESSAGE ABOUT THIS IN THE CODE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
+
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
@@ -96,6 +92,30 @@ module soap_turbo_radial
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
+
+!   For this basis numerical instabilities in the orthonormal basis construction develop
+!   above alpha_max = 7. These are relatively small up to alpha_max = 10 and become
+!   catastrophic at alpha_max = 12.
+    if( alpha_max > 7 )then
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3"
+      write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
+      write(*,*) "alpha_max > 10 this warning will turn into an error. You can do your own"
+      write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
+    else if( alpha_max > 10 )then
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3"
+      write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
+      write(*,*) "alpha_max > 10 the instabilities are too large to proceed. You can do your own"
+      write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
+      stop
+    end if
 
 !   If the user requests derivatives, we need to get the expansion coefficients up to
 !   alpha_max + 2
@@ -379,10 +399,6 @@ module soap_turbo_radial
                                                           exp_coeff_der)
 !   Expansion coefficients using the polynomial basis with smooth filter plus a Gaussian centered at the origin
 !
-!   Apparently, with this basis the W matrix becomes complex for 13 and higher
-!   basis functions, so alpha_max should not be higher than 12.
-!   ADD ERROR MESSAGE ABOUT THIS IN THE CODE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!
 !   TRY OUT: Check for very small numbers (that could lead to negative numbers) and then truncate them
 !   to zero
 !
@@ -405,6 +421,30 @@ module soap_turbo_radial
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
+
+!   For this basis numerical instabilities in the orthonormal basis construction develop
+!   above alpha_max = 8. These are relatively small up to alpha_max = 11 and become
+!   catastrophic at alpha_max = 13.
+    if( alpha_max > 8 )then
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the"
+      write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
+      write(*,*) "alpha_max > 11 this warning will turn into an error. You can do your own"
+      write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
+    else if( alpha_max > 11 )then
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the"
+      write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
+      write(*,*) "alpha_max > 11 the instabilities are too large to proceed. You can do your own"
+      write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
+      stop
+    end if
 
 !   If the user requests derivatives, we need to get the expansion coefficients up to
 !   alpha_max - 1 + 2. The "-1" is there because the Gaussian basis at the origin does not
