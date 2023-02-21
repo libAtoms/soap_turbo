@@ -96,17 +96,7 @@ module soap_turbo_radial
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 7. These are relatively small up to alpha_max = 10 and become
 !   catastrophic at alpha_max = 12.
-    if( alpha_max > 7 .and. print_message )then
-      print_message = .false.
-      write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3 <---- WARNING"
-      write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
-      write(*,*) "alpha_max > 10 this warning will turn into an error. You can do your own"
-      write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
-      write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
-      write(*,*) "before similar instabilities develop."
-      write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 10 )then
+    if( alpha_max > 10 )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3   <---- ERROR"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
@@ -116,6 +106,16 @@ module soap_turbo_radial
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
       stop
+    else if( alpha_max > 7 .and. print_message )then
+      print_message = .false.
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3 <---- WARNING"
+      write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
+      write(*,*) "alpha_max > 10 this warning will turn into an error. You can do your own"
+      write(*,*) "testing for 7 < alpha_max < 11, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
     end if
 
 !   If the user requests derivatives, we need to get the expansion coefficients up to
@@ -426,16 +426,7 @@ module soap_turbo_radial
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 8. These are relatively small up to alpha_max = 11 and become
 !   catastrophic at alpha_max = 13.
-    if( alpha_max > 8 .and. print_message )then
-      write(*,*) "-------------------------------------------------------------------------------"
-      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the       <---- WARNING"
-      write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
-      write(*,*) "alpha_max > 11 this warning will turn into an error. You can do your own"
-      write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
-      write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
-      write(*,*) "before similar instabilities develop."
-      write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 11 )then
+    if( alpha_max > 11 )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the         <---- ERROR"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
@@ -445,6 +436,15 @@ module soap_turbo_radial
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
       stop
+    else if( alpha_max > 8 .and. print_message )then
+      write(*,*) "-------------------------------------------------------------------------------"
+      write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the       <---- WARNING"
+      write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
+      write(*,*) "alpha_max > 11 this warning will turn into an error. You can do your own"
+      write(*,*) "testing for 8 < alpha_max < 12, the results might still be useful within that"
+      write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
+      write(*,*) "before similar instabilities develop."
+      write(*,*) "-------------------------------------------------------------------------------"
     end if
 
 !   If the user requests derivatives, we need to get the expansion coefficients up to
