@@ -72,7 +72,7 @@ an error if you try to use too many basis functions. Below is a figure showing t
 orthornomality matrix, where O_{ij} gives the overlap integral between basis functions i and j. This number
 should be 1 if i=j and 0 otherwise. Results for `poly3` are on the two columns on the left, and for `poly3gauss`
 on the two columns on the right. Note the color bar gives the log10 of the matrix elements. For the
-recommended `alpha_max` maxima, O_{ij} stays below 10^{-5} for i != j. The procedure becomes incrisingly
+recommended `alpha_max` maxima, O_{ij} stays below 10^{-5} for i != j. The procedure becomes increasingly
 unstable above that and catastrophically so at `alpha_max = 12, 13` for `poly3` and `poly3gauss`, respectively.
 
 ![Ovelap matrix elements](misc/poly3_overlaps.png)
