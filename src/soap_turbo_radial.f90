@@ -90,13 +90,14 @@ module soap_turbo_radial
 !   (alpha_max, n_atom_pairs)
     real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
-    logical, save :: print_basis = .false.
+    logical, save :: print_basis = .false., print_message = .true.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 7. These are relatively small up to alpha_max = 10 and become
 !   catastrophic at alpha_max = 12.
-    if( alpha_max > 7 )then
+    if( alpha_max > 7 .and. print_message )then
+      print_message = .false.
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
@@ -105,7 +106,7 @@ module soap_turbo_radial
       write(*,*) "range. Note that the poly3gauss basis allows you to add one extra basis function"
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 10 )then
+    else if( alpha_max > 10 .and. print_message )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the poly3"
       write(*,*) "basis, it is strongly recommended not to exceed alpha_max = 7. For"
@@ -419,13 +420,13 @@ module soap_turbo_radial
 !   (n_sites, n_neigh_max, alpha_max)
     real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
-    logical, save :: print_basis = .false.
+    logical, save :: print_basis = .false., print_message = .true.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 8. These are relatively small up to alpha_max = 11 and become
 !   catastrophic at alpha_max = 13.
-    if( alpha_max > 8 )then
+    if( alpha_max > 8 .and. print_message )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
@@ -434,7 +435,7 @@ module soap_turbo_radial
       write(*,*) "range. Note that the poly3 basis allows you to add one *less* basis function"
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
-    else if( alpha_max > 11 )then
+    else if( alpha_max > 11 .and. print_message )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "ERROR: Due to numerical instabilities in the basis construction for the"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
