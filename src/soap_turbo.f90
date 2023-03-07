@@ -186,6 +186,8 @@ module soap_turbo_desc
         call get_orthonormalization_matrix_poly3gauss(alpha_max(i), atom_sigma_r(i), rcut_hard(i), S_temp, W_temp)
       else if( basis == "poly3" )then
         call get_orthonormalization_matrix_poly3(alpha_max(i), S_temp, W_temp)
+      else if( basis == "poly3tab" )then
+        call get_orthonormalization_matrix_poly3_tabulated(alpha_max(i), S_temp, W_temp)
       end if
       S(i_beg(i):i_end(i), i_beg(i):i_end(i)) = S_temp
       W(i_beg(i):i_end(i), i_beg(i):i_end(i)) = W_temp
