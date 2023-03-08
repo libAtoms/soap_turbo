@@ -24,6 +24,8 @@
 ! HND XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 module soap_turbo_angular
+  use F_B_C
+  use iso_c_binding
 
   contains
 
@@ -183,13 +185,13 @@ module soap_turbo_angular
 ! times the radial derivative of the ilexp function.
 !
   subroutine get_eimphi_conjg(eimphi, prefl, prefm, fact_array, lmax, phi, rj, atom_sigma, &
-                              scaling, do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der )
+                              scaling, do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der, prefl_new )
     implicit none
     real*8, intent(in) :: rj, atom_sigma, scaling
     complex*16 :: eimphi(:), eimphi_rad_der(:), eimphi_azi_der(:)
     real*8 :: phi, rjbysigma, pref, cosm2, sinm2, cosm1, sinm1, cos0, sin0, cosphi2
     integer :: lmax, l, m, k
-    real*8 :: prefl(0:), fact_array(:), prefl_rad_der(0:), pref_rad_der
+    real*8 :: prefl(0:), prefl_new(0:), fact_array(:), prefl_rad_der(0:), pref_rad_der
     complex*16 :: prefm(0:)
     logical, intent(in) :: do_derivatives
 
@@ -197,6 +199,10 @@ module soap_turbo_angular
 
 !   This is fast
     call get_ilexp(prefl, fact_array, lmax, rjbysigma)
+    !write(*,*) prefl
+    prefl=prefl_new
+    !write(*,*) prefl_new
+    !stop
 !   Complex exponential using Euler's formula and Chebyshev recursion
     cosm2 = dcos(phi)
     cosphi2 = 2.d0 * cosm2
@@ -275,7 +281,8 @@ module soap_turbo_angular
         fact_array(i) = fact
       end do
     end if
-
+  !write(*,*) fact_array
+  !stop
 !   Full calculation. This is numerically unstable for small x, that's why
 !   we have cases below
 
@@ -370,15 +377,19 @@ module soap_turbo_angular
                                                 eimphi, preflm, plm_array, prefl, prefm, fact_array, &
                                                 mask, n_species, eimphi_rad_der, do_derivatives, &
                                                 prefl_rad_der, exp_coeff, exp_coeff_rad_der, &
-                                                exp_coeff_azi_der, exp_coeff_pol_der )
+                                                exp_coeff_azi_der, exp_coeff_pol_der, &
+                                                exp_coeff_d, exp_coeff_rad_der_d, &
+                                                exp_coeff_azi_der_d, exp_coeff_pol_der_d, n_atom_pairs, &
+                                                thetas_d, preflm_d, rjs_d, phis_d, mask_d, &
+                                                atom_sigma_in_d, atom_sigma_scaling_d)
 
     implicit none
 
-    integer, intent(in) :: n_species
-    integer :: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp
+    integer(c_int), intent(in) :: n_species, n_atom_pairs
+    integer (c_int):: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp, k_int,l,m,lmpo
     complex*16, intent(out) :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
     real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
-    real*8, intent(in) :: rcut
+    real(c_double), intent(in) :: rcut
     real*8 :: amplitude
 !   I should probably allocate and save these variables internally to minimize the number of variables that
 !   need to be passed to this subroutine
@@ -386,12 +397,18 @@ module soap_turbo_angular
     real*8 :: preflm(:), plm_array(:)
     real*8 :: prefl(0:), fact_array(:), prefl_rad_der(0:)
     complex*16 :: prefm(0:)
-    logical, intent(in) :: mask(:,:), do_derivatives
-!    logical, save :: init = .true.
-!    real*8, allocatable, save :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
-!    complex*16, allocatable, save :: eimphi_azi_der(:)
+    logical, intent(in) :: mask(:,:)
+    logical, intent(in) ::  do_derivatives
     real*8, allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
+    real(c_double), allocatable,target :: prefl_array_global(:,:)
+    real(c_double), allocatable,target :: plm_array_global(:,:), plm_array_der_global(:,:)
     complex*16, allocatable :: eimphi_azi_der(:)
+    complex*16, allocatable, target  :: eimphi_global(:,:)
+    type(c_ptr) :: preflm_d, prefl_array_global_d
+    type(c_ptr) :: thetas_d, plm_array_global_d, plm_array_der_global_d,eimphi_global_d
+    type(c_ptr) :: exp_coeff_d, exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d
+    type(c_ptr) :: rjs_d, phis_d, mask_d
+    type(c_ptr) ::  atom_sigma_in_d, atom_sigma_scaling_d
 
 
     kmax = 1 + lmax*(lmax+1)/2 + lmax
@@ -410,7 +427,38 @@ module soap_turbo_angular
 !      end if
     end if
 
+    !write(*,*) mask
 
+    
+    allocate(prefl_array_global(1:n_atom_pairs, 0:lmax))
+    allocate(plm_array_global(1:n_atom_pairs, 1:kmax))
+    allocate(eimphi_global(1:n_atom_pairs, 1:kmax))
+    call gpu_malloc_double(prefl_array_global_d, (lmax+1)*n_atom_pairs)
+    call gpu_malloc_double(plm_array_global_d, kmax*n_atom_pairs)
+    call gpu_malloc_double_complex(eimphi_global_d, kmax*n_atom_pairs)
+    call  gpu_get_plm_array_global(plm_array_global_d, n_atom_pairs, kmax, &
+                              lmax, thetas_d) 
+    call  gpu_get_eimphi_array_global(eimphi_global_d, &
+                                      rjs_d, phis_d, &
+                                      mask_d, atom_sigma_in_d, atom_sigma_scaling_d, & 
+                                      rcut, n_atom_pairs, n_species, lmax, prefl_array_global_d) 
+
+    
+    !write(*,*) "hoho"
+    call cpy_double_dtoh(prefl_array_global_d, c_loc(prefl_array_global), (lmax+1)*n_atom_pairs)
+    !open(unit=3,file="dodo.txt") !, position="append")
+    call cpy_double_dtoh(plm_array_global_d, c_loc(plm_array_global), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(eimphi_global_d, c_loc(eimphi_global), kmax*n_atom_pairs)
+    !write(*,*) "hihi"
+    if(do_derivatives) then
+    lmpo=lmax+1 
+    allocate(plm_array_der_global(1:n_atom_pairs, 1:kmax_der))
+    call gpu_malloc_double(plm_array_der_global_d, kmax_der*n_atom_pairs)
+    call  gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
+                              lmpo, thetas_d )
+    call cpy_double_dtoh(plm_array_der_global_d, c_loc(plm_array_der_global), kmax_der*n_atom_pairs)
+    
+    endif
 
     k = 0
     do i = 1, n_sites
@@ -429,11 +477,18 @@ module soap_turbo_angular
           atom_sigma = atom_sigma_in(i_sp) + atom_sigma_scaling(i_sp)*rj
           amplitude = rcut**2 / atom_sigma**2
           call get_eimphi_conjg( eimphi, prefl, prefm, fact_array, lmax, phi, rj, atom_sigma, atom_sigma_scaling(i_sp), &
-                                 do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der )
-          call get_plm_array(plm_array, lmax, x)
-          exp_coeff(1:kmax, k) = amplitude * preflm * plm_array * eimphi
+                                 do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der, prefl_array_global(k,0:lmax) )
+          !call get_plm_array(plm_array, lmax, x)
+          plm_array(1:kmax)=plm_array_global(k,1:kmax)
+          eimphi(1:kmax)=eimphi_global(k,1:kmax)
+          !write(3,*) k
+          !write(3,*) prefl
+          !write(3,*)  prefl_array_global(k,0:lmax)
+          
+          exp_coeff(1:kmax, k) = amplitude *preflm * plm_array * eimphi ! amplitude * YLM(1:kmax,x)*ILEXP !preflm * plm_array * eimphi
           if( do_derivatives )then
-            call get_plm_array(plm_array_der, lmax+1, x)
+            !call get_plm_array(plm_array_der, lmax+1, x)
+            plm_array_der(1:kmax_der)=plm_array_der_global(k,1:kmax_der)
             call get_plm_array_der(plm_array_der, lmax, x, plm_array_div_sin, plm_array_der_mul_sin)
             exp_coeff_rad_der(1:kmax, k) = amplitude * preflm * plm_array * eimphi_rad_der - &
                                            2.d0*amplitude/atom_sigma * atom_sigma_scaling(i_sp) * preflm * plm_array * eimphi
@@ -443,12 +498,23 @@ module soap_turbo_angular
         end if
       end do
     end do
+    !close(3)
 
 
     if( do_derivatives )then
       deallocate( plm_array_der, plm_array_div_sin, plm_array_der_mul_sin, eimphi_azi_der )
     end if
-
+    deallocate(plm_array_global)
+    call gpu_free_async(plm_array_global_d)
+    deallocate(eimphi_global)
+    call gpu_free_async(eimphi_global_d)
+    deallocate(prefl_array_global)
+    call gpu_free(prefl_array_global_d)
+    !stop
+    if(do_derivatives) then
+    deallocate(plm_array_der_global)
+    call gpu_free_async(plm_array_der_global_d)
+    endif
   return
   end subroutine get_angular_expansion_coefficients
 !**************************************************************************

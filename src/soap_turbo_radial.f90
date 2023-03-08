@@ -27,6 +27,7 @@
 module soap_turbo_radial
 
   use soap_turbo_functions
+  use iso_c_binding
 
   contains
 
@@ -83,7 +84,8 @@ module soap_turbo_radial
     real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
     real*8, intent(in) :: amplitude_scaling, central_weight
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
-    logical, intent(in) :: mask(:), do_derivatives, do_central
+    logical, intent(in) :: mask(:)
+    logical, intent(in) ::  do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
@@ -392,7 +394,8 @@ module soap_turbo_radial
     real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
     real*8, intent(in) :: amplitude_scaling
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
-    logical, intent(in) :: mask(:), do_derivatives
+    logical, intent(in) :: mask(:)
+    logical, intent(in) ::  do_derivatives
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
