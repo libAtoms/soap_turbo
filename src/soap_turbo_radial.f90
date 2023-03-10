@@ -753,11 +753,12 @@ module soap_turbo_radial
 
     integer :: alpha_max, i, j, info
     real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:)
+    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
     allocate( Sb(1:alpha_max, 1:alpha_max) )
+    allocate( Sc(1:alpha_max, 1:alpha_max) )
     allocate( U(1:alpha_max, 1:alpha_max) )
     allocate( Vt(1:alpha_max, 1:alpha_max) )
     allocate( svd(1:alpha_max) )
@@ -788,8 +789,10 @@ module soap_turbo_radial
     do i = 1, alpha_max
       S(i,i) = dsqrt(svd(i))
     end do
-    S = matmul(U,S)
-    S = matmul(S,VT)
+!    S = matmul(U,S)
+!    S = matmul(S,VT)
+    call dgemm("N", "N", alpha_max, alpha_max, alpha_max, 1.d0, U, alpha_max, S, alpha_max, 0.d0, Sc, alpha_max)
+    call dgemm("N", "N", alpha_max, alpha_max, alpha_max, 1.d0, Sc, alpha_max, VT, alpha_max, 0.d0, S, alpha_max)
 !   Invert S
     if( stable_basis )then
       call dpotrf( "U", alpha_max, S, alpha_max, info )
@@ -812,7 +815,7 @@ module soap_turbo_radial
 
     S(1:alpha_max, 1:alpha_max) = Sb(1:alpha_max, 1:alpha_max)
 
-    deallocate( Sb, U, Vt, svd, work, ipiv )
+    deallocate( Sb, U, Vt, svd, work, ipiv, Sc )
 
   return
   end subroutine
@@ -840,13 +843,14 @@ module soap_turbo_radial
 
     integer :: alpha_max, i, j, info, n
     real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:)
+    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
     real*8 :: s2, I_n, N_n, N_np1, I_np1, N_np2, I_np2, C2, sq2, pi, atom_sigma, rcut_hard
     real*8, intent(in) :: rcut_hard_in, atom_sigma_in
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
     allocate( Sb(1:alpha_max, 1:alpha_max) )
+    allocate( Sc(1:alpha_max, 1:alpha_max) )
     allocate( U(1:alpha_max, 1:alpha_max) )
     allocate( Vt(1:alpha_max, 1:alpha_max) )
     allocate( svd(1:alpha_max) )
@@ -910,8 +914,10 @@ module soap_turbo_radial
     do i = 1, alpha_max
       S(i,i) = dsqrt(svd(i))
     end do
-    S = matmul(U,S)
-    S = matmul(S,VT)
+!    S = matmul(U,S)
+!    S = matmul(S,VT)
+    call dgemm("N", "N", alpha_max, alpha_max, alpha_max, 1.d0, U, alpha_max, S, alpha_max, 0.d0, Sc, alpha_max)
+    call dgemm("N", "N", alpha_max, alpha_max, alpha_max, 1.d0, Sc, alpha_max, VT, alpha_max, 0.d0, S, alpha_max)
 !   Invert S
     if( stable_basis )then
       call dpotrf( "U", alpha_max, S, alpha_max, info )
@@ -934,7 +940,7 @@ module soap_turbo_radial
 
     S(1:alpha_max, 1:alpha_max) = Sb(1:alpha_max, 1:alpha_max)
 
-    deallocate( Sb, U, Vt, svd, work, ipiv )
+    deallocate( Sb, U, Vt, svd, work, ipiv, Sc )
 
   return
   end subroutine
