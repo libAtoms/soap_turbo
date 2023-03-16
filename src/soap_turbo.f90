@@ -411,6 +411,8 @@ end if
     
   st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
   call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double)
+  call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, st_rad_exp_coeff_der_double)
+
     
   call gpu_malloc_double(radial_exp_coeff_d, n_max*n_atom_pairs)
   call cpy_double_htod(c_loc(radial_exp_coeff),radial_exp_coeff_d, n_max*n_atom_pairs)
@@ -493,8 +495,11 @@ end if
 
   call gpu_malloc_int(n_neigh_d,n_sites)
   call cpy_int_htod(c_loc(n_neigh),n_neigh_d, n_sites)
-  call cpy_double_complex_htod(c_loc(angular_exp_coeff),angular_exp_coeff_d, k_max*n_atom_pairs)
-  
+  ! call cpy_double_complex_htod(c_loc(angular_exp_coeff),angular_exp_coeff_d, k_max*n_atom_pairs)
+  ! call cpy_htod(c_loc(angular_exp_coeff_rad_der),angular_exp_coeff_rad_der_d, st_ang_exp_coeff_rad_der)
+  ! call cpy_htod(c_loc(angular_exp_coeff_azi_der),angular_exp_coeff_azi_der_d,st_ang_exp_coeff_rad_der)
+  ! call cpy_htod(c_loc(angular_exp_coeff_pol_der),angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der)
+    
   size_1_species=size(species,1)
   size_2_species=size(species,2)
   call gpu_malloc_int(species_d,size_1_species*size_2_species)
@@ -565,15 +570,7 @@ end if
     call gpu_malloc_all(cnk_rad_der_d,st_cnk_rap_der)
     call gpu_malloc_all(cnk_azi_der_d,st_cnk_rap_der)
     call gpu_malloc_all(cnk_pol_der_d,st_cnk_rap_der)
-    call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, st_rad_exp_coeff_der_double)
 
-
-    call cpy_htod(c_loc(angular_exp_coeff_rad_der),angular_exp_coeff_rad_der_d, st_ang_exp_coeff_rad_der)
-
-    call cpy_htod(c_loc(angular_exp_coeff_azi_der),angular_exp_coeff_azi_der_d,st_ang_exp_coeff_rad_der)
-
-    call cpy_htod(c_loc(angular_exp_coeff_pol_der),angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der)
-    
     call gpu_get_derivatives(radial_exp_coeff_d, angular_exp_coeff_d, radial_exp_coeff_der_d, &
                                   angular_exp_coeff_rad_der_d, angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, &
                                   cnk_rad_der_d, cnk_azi_der_d, cnk_pol_der_d, &

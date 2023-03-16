@@ -185,13 +185,15 @@ module soap_turbo_angular
 ! times the radial derivative of the ilexp function.
 !
   subroutine get_eimphi_conjg(eimphi, prefl, prefm, fact_array, lmax, phi, rj, atom_sigma, &
-                              scaling, do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der, prefl_new )
+                              scaling, do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der, &
+                              prefl_new, prefl_der_new )
     implicit none
     real*8, intent(in) :: rj, atom_sigma, scaling
     complex*16 :: eimphi(:), eimphi_rad_der(:), eimphi_azi_der(:)
     real*8 :: phi, rjbysigma, pref, cosm2, sinm2, cosm1, sinm1, cos0, sin0, cosphi2
     integer :: lmax, l, m, k
-    real*8 :: prefl(0:), prefl_new(0:), fact_array(:), prefl_rad_der(0:), pref_rad_der
+    real*8 :: prefl_der_new(0:), prefl_new(0:)
+    real*8 :: prefl(0:), fact_array(:), prefl_rad_der(0:), pref_rad_der
     complex*16 :: prefm(0:)
     logical, intent(in) :: do_derivatives
 
@@ -231,6 +233,7 @@ module soap_turbo_angular
     if( do_derivatives )then
 !     Get ilexp derivatives
       call get_ilexp_der(prefl, lmax, rj, atom_sigma, scaling, prefl_rad_der)
+      prefl_rad_der=prefl_der_new
       k = 1
       do l = 0, lmax
         pref_rad_der = prefl_rad_der(l)
@@ -387,7 +390,7 @@ module soap_turbo_angular
 
     integer(c_int), intent(in) :: n_species, n_atom_pairs
     integer (c_int):: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp, k_int,l,m,lmpo
-    complex*16, intent(out) :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
+    complex*16, intent(out), target :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
     real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
     real(c_double), intent(in) :: rcut
     real*8 :: amplitude
@@ -400,16 +403,25 @@ module soap_turbo_angular
     logical, intent(in) :: mask(:,:)
     logical, intent(in) ::  do_derivatives
     real*8, allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
-    real(c_double), allocatable,target :: prefl_array_global(:,:)
+    real(c_double), allocatable,target :: prefl_array_global(:,:), prefl_array_global_der(:,:)
     real(c_double), allocatable,target :: plm_array_global(:,:), plm_array_der_global(:,:)
     complex*16, allocatable :: eimphi_azi_der(:)
-    complex*16, allocatable, target  :: eimphi_global(:,:)
+    complex*16, allocatable, target  :: eimphi_global(:,:), eimphi_rad_der_global(:,:)
+    complex*16, allocatable, target  :: tr_exp_coeff(:,:), eimphi_azi_der_global(:,:)
+    !complex*16, allocatable, target :: tr_exp_coeff_rad_der(:,:), &
+    !                tr_exp_coeff_azi_der(:,:), tr_exp_coeff_pol_der (:,:)
     type(c_ptr) :: preflm_d, prefl_array_global_d
     type(c_ptr) :: thetas_d, plm_array_global_d, plm_array_der_global_d,eimphi_global_d
     type(c_ptr) :: exp_coeff_d, exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d
     type(c_ptr) :: rjs_d, phis_d, mask_d
     type(c_ptr) ::  atom_sigma_in_d, atom_sigma_scaling_d
-
+    logical(c_bool) :: c_do_derivatives
+    type(c_ptr) :: eimphi_rad_der_global_d, eimphi_azi_der_global_d
+    type(c_ptr) :: prefl_array_global_der_d
+    real(c_double), allocatable, target :: plm_array_div_sin_global(:,:), plm_array_der_mul_sin_global(:,:)
+    type(c_ptr) :: plm_array_div_sin_d, plm_array_der_mul_sin_d
+    
+    c_do_derivatives=do_derivatives
 
     kmax = 1 + lmax*(lmax+1)/2 + lmax
 
@@ -427,37 +439,78 @@ module soap_turbo_angular
 !      end if
     end if
 
-    !write(*,*) mask
 
     
     allocate(prefl_array_global(1:n_atom_pairs, 0:lmax))
     allocate(plm_array_global(1:n_atom_pairs, 1:kmax))
     allocate(eimphi_global(1:n_atom_pairs, 1:kmax))
+!    allocate(tr_exp_coeff(1:n_atom_pairs, 1:kmax))
+
     call gpu_malloc_double(prefl_array_global_d, (lmax+1)*n_atom_pairs)
     call gpu_malloc_double(plm_array_global_d, kmax*n_atom_pairs)
     call gpu_malloc_double_complex(eimphi_global_d, kmax*n_atom_pairs)
+
+    if(do_derivatives) then
+    call gpu_malloc_double(prefl_array_global_der_d, (lmax+1)*n_atom_pairs)
+    allocate(prefl_array_global_der(1:n_atom_pairs, 0:lmax))
+    call gpu_malloc_double_complex(eimphi_rad_der_global_d, kmax*n_atom_pairs)
+    call gpu_malloc_double_complex(eimphi_azi_der_global_d, kmax*n_atom_pairs)
+    
+    allocate(plm_array_div_sin_global(1:n_atom_pairs,1:kmax))
+    allocate(plm_array_der_mul_sin_global(1:n_atom_pairs,1:kmax))
+    call gpu_malloc_double(plm_array_div_sin_d, kmax*n_atom_pairs)
+    call gpu_malloc_double(plm_array_der_mul_sin_d, kmax*n_atom_pairs)
+    ! allocate(tr_exp_coeff_rad_der(1:n_atom_pairs, 1:kmax))
+    ! allocate(tr_exp_coeff_azi_der(1:n_atom_pairs, 1:kmax))
+    ! allocate(tr_exp_coeff_pol_der(1:n_atom_pairs, 1:kmax))
+    endif
+
     call  gpu_get_plm_array_global(plm_array_global_d, n_atom_pairs, kmax, &
                               lmax, thetas_d) 
-    call  gpu_get_eimphi_array_global(eimphi_global_d, &
-                                      rjs_d, phis_d, &
-                                      mask_d, atom_sigma_in_d, atom_sigma_scaling_d, & 
-                                      rcut, n_atom_pairs, n_species, lmax, prefl_array_global_d) 
-
     
-    !write(*,*) "hoho"
-    call cpy_double_dtoh(prefl_array_global_d, c_loc(prefl_array_global), (lmax+1)*n_atom_pairs)
-    !open(unit=3,file="dodo.txt") !, position="append")
-    call cpy_double_dtoh(plm_array_global_d, c_loc(plm_array_global), kmax*n_atom_pairs)
-    call cpy_double_complex_dtoh(eimphi_global_d, c_loc(eimphi_global), kmax*n_atom_pairs)
-    !write(*,*) "hihi"
     if(do_derivatives) then
     lmpo=lmax+1 
-    allocate(plm_array_der_global(1:n_atom_pairs, 1:kmax_der))
     call gpu_malloc_double(plm_array_der_global_d, kmax_der*n_atom_pairs)
-    call  gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
+    call gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
                               lmpo, thetas_d )
+    
+    allocate(plm_array_der_global(1:n_atom_pairs, 1:kmax_der))
     call cpy_double_dtoh(plm_array_der_global_d, c_loc(plm_array_der_global), kmax_der*n_atom_pairs)
     
+    endif
+
+    call gpu_get_exp_coeff_array(eimphi_global_d, &
+                                  rjs_d, phis_d, thetas_d, &
+                                  mask_d, atom_sigma_in_d, atom_sigma_scaling_d, & 
+                                  rcut, n_atom_pairs, n_species, lmax, kmax, &
+                                  prefl_array_global_d,plm_array_global_d, &
+                                  plm_array_der_global_d, &
+                                  prefl_array_global_der_d, &
+                                  preflm_d,exp_coeff_d, &
+                                  c_do_derivatives, &
+                                  eimphi_rad_der_global_d, eimphi_azi_der_global_d, &
+                                  plm_array_div_sin_d, plm_array_der_mul_sin_d, &
+                                  exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d) 
+
+    
+    call cpy_double_dtoh(prefl_array_global_d, c_loc(prefl_array_global), (lmax+1)*n_atom_pairs)
+    call cpy_double_dtoh(plm_array_global_d, c_loc(plm_array_global), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(eimphi_global_d, c_loc(eimphi_global), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(exp_coeff_d, c_loc(exp_coeff), kmax*n_atom_pairs)
+    if(do_derivatives) then
+    call cpy_double_dtoh(prefl_array_global_der_d, c_loc(prefl_array_global_der), (lmax+1)*n_atom_pairs)
+    
+    allocate(eimphi_rad_der_global(1:n_atom_pairs, 1:kmax))
+    allocate(eimphi_azi_der_global(1:n_atom_pairs, 1:kmax))
+    call cpy_double_complex_dtoh(eimphi_rad_der_global_d, c_loc(eimphi_rad_der_global), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(eimphi_azi_der_global_d, c_loc(eimphi_azi_der_global), kmax*n_atom_pairs)
+
+    call cpy_double_complex_dtoh(exp_coeff_rad_der_d,c_loc(exp_coeff_rad_der), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(exp_coeff_azi_der_d,c_loc(exp_coeff_azi_der), kmax*n_atom_pairs)
+    call cpy_double_complex_dtoh(exp_coeff_pol_der_d,c_loc(exp_coeff_pol_der), kmax*n_atom_pairs)
+    call cpy_double_dtoh(plm_array_der_mul_sin_d,c_loc(plm_array_der_mul_sin_global),kmax*n_atom_pairs)
+    call cpy_double_dtoh(plm_array_div_sin_d,c_loc(plm_array_div_sin_global),kmax*n_atom_pairs)
+
     endif
 
     k = 0
@@ -471,29 +524,32 @@ module soap_turbo_angular
               exit
             end if
           end do
-          phi = phis(k)
-          theta = thetas(k)
-          x = dcos(theta)
-          atom_sigma = atom_sigma_in(i_sp) + atom_sigma_scaling(i_sp)*rj
-          amplitude = rcut**2 / atom_sigma**2
-          call get_eimphi_conjg( eimphi, prefl, prefm, fact_array, lmax, phi, rj, atom_sigma, atom_sigma_scaling(i_sp), &
-                                 do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der, prefl_array_global(k,0:lmax) )
-          !call get_plm_array(plm_array, lmax, x)
-          plm_array(1:kmax)=plm_array_global(k,1:kmax)
-          eimphi(1:kmax)=eimphi_global(k,1:kmax)
-          !write(3,*) k
-          !write(3,*) prefl
-          !write(3,*)  prefl_array_global(k,0:lmax)
+          !phi = phis(k)
+          !theta = thetas(k)
+          !x = dcos(theta)
+          !atom_sigma = atom_sigma_in(i_sp) + atom_sigma_scaling(i_sp)*rj
+          !amplitude = rcut**2 / atom_sigma**2
+          !!call get_eimphi_conjg( eimphi, prefl, prefm, fact_array, lmax, phi, rj, atom_sigma, atom_sigma_scaling(i_sp), &
+          !!                       do_derivatives, prefl_rad_der, eimphi_rad_der, eimphi_azi_der,  & 
+          !!                       prefl_array_global(k,0:lmax), prefl_array_global_der(k,0:lmax) )
+          !!call get_plm_array(plm_array, lmax, x)
+          !plm_array(1:kmax)=plm_array_global(k,1:kmax)
+          !eimphi(1:kmax)=eimphi_global(k,1:kmax)
           
-          exp_coeff(1:kmax, k) = amplitude *preflm * plm_array * eimphi ! amplitude * YLM(1:kmax,x)*ILEXP !preflm * plm_array * eimphi
+          !exp_coeff(1:kmax, k) = amplitude *preflm * plm_array * eimphi ! amplitude * YLM(1:kmax,x)*ILEXP !preflm * plm_array * eimphi
+          !exp_coeff(1:kmax, k) = tr_exp_coeff(k,1:kmax)
           if( do_derivatives )then
             !call get_plm_array(plm_array_der, lmax+1, x)
-            plm_array_der(1:kmax_der)=plm_array_der_global(k,1:kmax_der)
-            call get_plm_array_der(plm_array_der, lmax, x, plm_array_div_sin, plm_array_der_mul_sin)
-            exp_coeff_rad_der(1:kmax, k) = amplitude * preflm * plm_array * eimphi_rad_der - &
-                                           2.d0*amplitude/atom_sigma * atom_sigma_scaling(i_sp) * preflm * plm_array * eimphi
-            exp_coeff_azi_der(1:kmax, k) = amplitude * preflm * plm_array_div_sin * eimphi_azi_der
-            exp_coeff_pol_der(1:kmax, k) = amplitude * preflm * plm_array_der_mul_sin * eimphi
+            !plm_array_der(1:kmax_der)=plm_array_der_global(k,1:kmax_der)
+            !call get_plm_array_der(plm_array_der, lmax, x, plm_array_div_sin, plm_array_der_mul_sin)
+            !eimphi_rad_der=eimphi_rad_der_global(k,1:kmax)
+            !eimphi_azi_der=eimphi_azi_der_global(k,1:kmax)
+            !plm_array_div_sin(1:kmax)=plm_array_div_sin_global(k,1:kmax)
+            !plm_array_der_mul_sin(1:kmax)=plm_array_der_mul_sin_global(k,1:kmax)
+            !exp_coeff_rad_der(1:kmax, k) = amplitude * preflm * plm_array * eimphi_rad_der - &
+            !                               2.d0*atom_sigma_scaling(i_sp)/atom_sigma * exp_coeff(1:kmax, k)
+            !exp_coeff_azi_der(1:kmax, k) = amplitude * preflm * plm_array_div_sin * eimphi_azi_der
+            !exp_coeff_pol_der(1:kmax, k) = amplitude * preflm * plm_array_der_mul_sin * eimphi
           end if
         end if
       end do
@@ -503,10 +559,16 @@ module soap_turbo_angular
 
     if( do_derivatives )then
       deallocate( plm_array_der, plm_array_div_sin, plm_array_der_mul_sin, eimphi_azi_der )
+      deallocate(eimphi_azi_der_global,eimphi_rad_der_global)
+      deallocate(plm_array_der_mul_sin_global,plm_array_div_sin_global)
+      call gpu_free_async( plm_array_der_mul_sin_d)
+      call gpu_free_async( plm_array_div_sin_d)
+    ! deallocate(tr_exp_coeff_rad_der, tr_exp_coeff_azi_der, tr_exp_coeff_pol_der)
     end if
     deallocate(plm_array_global)
     call gpu_free_async(plm_array_global_d)
     deallocate(eimphi_global)
+    !deallocate(tr_exp_coeff)
     call gpu_free_async(eimphi_global_d)
     deallocate(prefl_array_global)
     call gpu_free(prefl_array_global_d)
@@ -514,6 +576,8 @@ module soap_turbo_angular
     if(do_derivatives) then
     deallocate(plm_array_der_global)
     call gpu_free_async(plm_array_der_global_d)
+    deallocate(prefl_array_global_der)
+    call gpu_free(prefl_array_global_der_d)
     endif
   return
   end subroutine get_angular_expansion_coefficients
