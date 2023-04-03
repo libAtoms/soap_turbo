@@ -199,9 +199,7 @@ end if
   call cpy_double_htod( c_loc(preflm), preflm_d, k_max)
   if( do_derivatives )then
     allocate( prefl_rad_der(0:l_max) ) ! real*8
-    !call gpu_malloc_double(prefl_rad_der_d,l_max)
     allocate( eimphi_rad_der(1:k_max) ) ! complex*16
-    !call gpu_malloc_double_complex(eimphi_rad_der_d,k_max)
   end if
 
 
@@ -346,7 +344,7 @@ end if
     allocate( radial_exp_coeff_der(1:n_max, 1:1) )
   end if
 
-
+  !write(*,*) n_sites, n_atom_pairs
   if( do_timing )then
     call cpu_time(time2)
     memory_time = memory_time + time2 - time1
@@ -494,12 +492,10 @@ end if
 
 
   call gpu_malloc_int(n_neigh_d,n_sites)
-  call cpy_int_htod(c_loc(n_neigh),n_neigh_d, n_sites)
-  ! call cpy_double_complex_htod(c_loc(angular_exp_coeff),angular_exp_coeff_d, k_max*n_atom_pairs)
-  ! call cpy_htod(c_loc(angular_exp_coeff_rad_der),angular_exp_coeff_rad_der_d, st_ang_exp_coeff_rad_der)
-  ! call cpy_htod(c_loc(angular_exp_coeff_azi_der),angular_exp_coeff_azi_der_d,st_ang_exp_coeff_rad_der)
-  ! call cpy_htod(c_loc(angular_exp_coeff_pol_der),angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der)
-    
+  !call cpy_int_htod(c_loc(n_neigh),n_neigh_d, n_sites)
+  !call gpu_malloc_all(n_neigh_d,st_n_sites_int)
+  call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int)
+
   size_1_species=size(species,1)
   size_2_species=size(species,2)
   call gpu_malloc_int(species_d,size_1_species*size_2_species)
@@ -683,8 +679,6 @@ end if
     end do
     
 
-    call gpu_malloc_all(n_neigh_d,st_n_sites_int)
-    call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int)
 
     call gpu_malloc_all(i_k2_start_d,st_n_sites_int)
     call cpy_htod(c_loc(i_k2_start),i_k2_start_d,st_n_sites_int)
@@ -777,10 +771,6 @@ end if
   call gpu_free_async(cnk_rad_der_d)
   call gpu_free_async(cnk_azi_der_d)
   call gpu_free_async(cnk_pol_der_d)
-  call gpu_free_async(thetas_d)
-  call gpu_free_async(phis_d)
-  call gpu_free_async(rjs_d)
-  ! call gpu_free_async(soap_cart_der_d)
   call gpu_free_async(k3_index_d)
   call gpu_free_async(i_k2_start_d)
   call gpu_free_async(radial_exp_coeff_d)
@@ -815,15 +805,31 @@ end if
     write(*,*)'                                       |'
     write(*,*)'.......................................|'
   end if
+  call gpu_free_async(thetas_d)
+  call gpu_free_async(phis_d)
+  call gpu_free_async(rjs_d)
   deallocate(new_mask)
+  call gpu_free_async(mask_d)
+  call gpu_free_async(atom_sigma_t_d)
+  call gpu_free_async(atom_sigma_t_scaling_d)
+  call gpu_free_async(atom_sigma_r_d)
+  call gpu_free_async(k2_start_d)
+  call gpu_free_async(n_neigh_d)
+  call gpu_free_async(species_d)
+  call gpu_free_async(species_multiplicity_d)
+  call gpu_free_async(rcut_hard_d)
+  call gpu_free_async(W_d)
+  call gpu_free_async(S_d)
+  call gpu_free_async(k2_i_site_d)
+  call gpu_free_async(preflm_d)
   call gpu_free_async(i_beg_d)
   call gpu_free_async(i_end_d)
-  call gpu_free_async(k2_i_site_d)
   call gpu_free_async(multiplicity_array_d)
   call gpu_free_async(skip_soap_component_d)
   call gpu_free_async(cnk_d)
-  ! call gpu_free_async(soap_d)
   call gpu_free_async(sqrt_dot_p_d)
+  call gpu_free_async(central_weight_d)
+
   !call cpu_time(ttt(2))
   ttt(2)=MPI_Wtime()
   time_get_soap=time_get_soap+ttt(2)-ttt(1)
