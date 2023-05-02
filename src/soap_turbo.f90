@@ -775,7 +775,7 @@ module soap_turbo_desc
 
 !   Internal variables
     integer, allocatable :: species_supercell(:,:)
-    integer :: n_sites, n_sites_supercell, i, j, k, i2, j2, k2, ijunk, counter
+    integer :: n_sites, n_sites_supercell, i, j, k, i2, j2, k2, ijunk, counter, i3
 
 
     n_sites = size(xyz_species)
@@ -826,6 +826,7 @@ module soap_turbo_desc
       species_multiplicity_supercell = species_multiplicity
     end if
 
+
 !   This is perhaps not the most efficient way to select only one atom, fix in the future <----- FIX THIS
     if( .not. all_atoms )then
       n_sites = 1
@@ -849,6 +850,9 @@ module soap_turbo_desc
       do k = 1, n_neigh(i)
         k2 = k2 + 1
         j = neighbors_list(k2)
+        if( k == 1 )then
+          i3 = j 
+        end if
 !        if( k == 1 )then
 !          do i2 = 1, species_multiplicity_supercell(i)
 !            mask_species(k2, species_supercell(i2, j)) = .true.
@@ -858,13 +862,14 @@ module soap_turbo_desc
 !            mask_species(k2, species_supercell(i2, j)) = .true.
 !          end do
 !        end if
-          do i2 = 1, species_multiplicity_supercell(i)
+          do i2 = 1, species_multiplicity_supercell(i3)
             if( species_supercell(i2, j) > 0 )then
               mask_species(k2, species_supercell(i2, j)) = .true.
             end if
           end do
       end do
     end do
+
 
 !    deallocate( species_supercell, species_multiplicity_supercell )
     deallocate( species_supercell )

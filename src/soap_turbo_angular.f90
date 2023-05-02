@@ -392,6 +392,7 @@ module soap_turbo_angular
 !    complex*16, allocatable, save :: eimphi_azi_der(:)
     real*8, allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
     complex*16, allocatable :: eimphi_azi_der(:)
+    logical :: do_this
 
 
     kmax = 1 + lmax*(lmax+1)/2 + lmax
@@ -399,6 +400,8 @@ module soap_turbo_angular
     exp_coeff = 0.d0
     if( do_derivatives )then
       exp_coeff_rad_der = 0.d0
+      exp_coeff_azi_der = 0.d0
+      exp_coeff_pol_der = 0.d0
       kmax_der = 1 + (lmax+1)*(lmax+2)/2 + lmax+1
 !      if( init )then
 !        init = .false.
@@ -411,18 +414,20 @@ module soap_turbo_angular
     end if
 
 
-
     k = 0
     do i = 1, n_sites
       do j = 1, n_neigh(i)
         k = k + 1
         rj = rjs(k)
         if( rj < rcut )then
+          do_this = .false.
           do i_sp = 1, n_species
             if( mask(k, i_sp) )then
+              do_this = .true.
               exit
             end if
           end do
+          if( .not. do_this )cycle
           phi = phis(k)
           theta = thetas(k)
           x = dcos(theta)
