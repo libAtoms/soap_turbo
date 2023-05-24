@@ -176,6 +176,7 @@ module soap_turbo_radial
           cycle
         end if
         if( rjs_in(k) < rcut_hard_in .and. mask(k) )then
+          pref_f = 0.d0
           exp_coeff_temp1 = 0.d0
           exp_coeff_temp2 = 0.d0
           exp_coeff_der_temp = 0.d0
@@ -508,6 +509,7 @@ module soap_turbo_radial
           cycle
         end if
         if( rjs_in(k) < rcut_hard_in .and. mask(k) )then
+          pref_f = 0.d0
           exp_coeff_temp1 = 0.d0
           exp_coeff_temp2 = 0.d0
           exp_coeff_der_temp = 0.d0
