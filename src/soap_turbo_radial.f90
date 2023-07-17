@@ -81,12 +81,12 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real*8, intent(in) :: rcut_soft_in,  rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
     real*8, intent(in) :: amplitude_scaling, central_weight
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
-    logical, intent(in) :: mask(:)
-    logical, intent(in) ::  do_derivatives, do_central
+    logical, intent(in) :: mask(:), do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
+    real(c_double),intent(in) :: rcut_hard_in
 !
     integer :: n, i, j, k, alpha_max_der
     real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
@@ -94,7 +94,7 @@ module soap_turbo_radial
     real*8 :: atom_sigma_f, rj_f
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (alpha_max, n_atom_pairs)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(c_double),intent(inout), target :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
@@ -157,6 +157,7 @@ module soap_turbo_radial
           cycle
         end if
         if( rjs_in(k) < rcut_hard_in .and. mask(k) )then
+          pref_f = 0.d0
           exp_coeff_temp1 = 0.d0
           exp_coeff_temp2 = 0.d0
           exp_coeff_der_temp = 0.d0
@@ -335,10 +336,10 @@ module soap_turbo_radial
 !   know the actual value of the expansion coefficients.
 !   Since this is a global factor, once we have normalized
 !   the SOAP vectors it does not have an effect anymore.
-    exp_coeff = exp_coeff * dsqrt(rcut_hard_in)
-    if( do_derivatives )then
-      exp_coeff_der = exp_coeff_der / dsqrt(rcut_hard_in)
-    end if
+    ! exp_coeff = exp_coeff * dsqrt(rcut_hard_in)
+    ! if( do_derivatives )then
+    !   exp_coeff_der = exp_coeff_der / dsqrt(rcut_hard_in)
+    ! end if
 !   *********************************************
 
 !   This is for debugging
@@ -391,20 +392,20 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real*8, intent(in) :: rcut_soft_in,rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
     real*8, intent(in) :: amplitude_scaling
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
-    logical, intent(in) :: mask(:)
-    logical, intent(in) ::  do_derivatives
+    logical, intent(in) :: mask(:), do_derivatives
     character(*), intent(in) :: scaling_mode
+    real(c_double), intent(in) ::  rcut_hard_in
 !
-    integer :: n, i, j, k, alpha_max_der
+    integer :: n, i, j, k, alpha_max_der, kij
     real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
     real*8 :: W(:,:)
     real*8 :: atom_sigma_f, rj_f, N_gauss
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (n_sites, n_neigh_max, alpha_max)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(c_double),intent(inout), target :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
@@ -469,7 +470,14 @@ module soap_turbo_radial
         if( j == 1 )then
           cycle
         end if
-        if( rjs_in(k) < rcut_hard_in .and. mask(k) )then
+        ! if(rjs_in(k) <= rcut_hard_in) then
+        ! if(mask(k).eqv..false.) then
+        ! write(*,*) "Mask is false at ", k
+        ! endif 
+        ! endif 
+
+        if( rjs_in(k) <= rcut_hard_in .and. mask(k) )then
+          pref_f = 0.d0
           exp_coeff_temp1 = 0.d0
           exp_coeff_temp2 = 0.d0
           exp_coeff_der_temp = 0.d0
@@ -669,12 +677,26 @@ module soap_turbo_radial
 !   know the actual value of the expansion coefficients.
 !   Since this is a global factor, once we have normalized
 !   the SOAP vectors it does not have an effect anymore.
-    exp_coeff = exp_coeff * dsqrt(rcut_hard_in)
-    if( do_derivatives )then
-      exp_coeff_der = exp_coeff_der / dsqrt(rcut_hard_in)
-    end if
+    ! exp_coeff = exp_coeff*dsqrt(rcut_hard_in)
+    ! if( do_derivatives )then
+    !   exp_coeff_der = exp_coeff_der/ dsqrt(rcut_hard_in)
+    ! end if
 !   ***********************************
-
+    
+  
+    k=0
+    do i = 1, n_sites
+      do j = 1, n_neigh(i)
+        k = k + 1
+  do n=1,size(exp_coeff,1)
+  if(isnan(exp_coeff(n,kij))) then
+  write(*,*)
+  write(*,*) "Nan allert! in radial subroutine",n,k,i
+  !stop
+  endif
+  enddo
+  enddo
+  enddo
 !   This is for debugging
     if( .false. )then
       open(10, file="coefficients.dat", status="unknown", access="append")

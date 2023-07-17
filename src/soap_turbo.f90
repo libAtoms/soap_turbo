@@ -39,7 +39,7 @@ module soap_turbo_desc
                       atom_sigma_r_scaling, atom_sigma_t, atom_sigma_t_scaling, &
                       amplitude_scaling, radial_enhancement, central_weight, basis, scaling_mode, do_timing, &
                       do_derivatives, compress_soap, compress_soap_indices, soap, soap_cart_der, time_get_soap, &
-                      soap_d,  soap_cart_der_d)
+                      soap_d,  soap_cart_der_d, gpu_stream)
 
   implicit none
 
@@ -62,6 +62,7 @@ module soap_turbo_desc
 
 ! Output variables
   real(c_double), intent(inout), target :: soap(:,:), soap_cart_der(:,:,:)
+  type(c_ptr), intent(inout) :: gpu_stream
 !-------------------
 
 
@@ -83,7 +84,7 @@ module soap_turbo_desc
   real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
 
-  integer, allocatable, target :: i_beg(:), i_end(:)
+  integer(c_int), allocatable, target :: i_beg(:), i_end(:)
   integer(c_int), allocatable, target :: k2_i_site(:),k3_index(:),i_k2_start(:), k2_start(:)
   integer, save :: n_max_prev
   integer :: k_max, n_max
@@ -112,20 +113,39 @@ module soap_turbo_desc
   integer(c_size_t) :: st_n_atom_pairs_int, st_n_sites_int, st_skip_component
   integer(c_size_t) :: st_n_atom_pairs_double, st_n_sites_double, st_n_multiplicity_double
   integer(c_size_t) :: st_cnk,st_cnk_rap_der, st_rad_exp_coeff_der_double, st_ang_exp_coeff_rad_der
+  integer(c_size_t) :: st_mask_d, st_size_rcut_hard, st_size_atom_sigma_r,st_size_W, st_size_S
+  integer(c_size_t) :: st_size_i_beg,st_size_global_scaling, st_size_i_end, st_size_angular_exp_coeff
+  integer(c_size_t) :: st_size_atom_sigma_t, st_size_atom_sigma_t_scaling, st_size_species
+  integer(c_size_t) :: st_size_species_multiplicity,st_size_central_weight, st_size_preflm
+  
   integer(c_int) :: bintybint, size_central_weight
   type(c_ptr) :: W_d, S_d, species_multiplicity_d, species_d, rcut_hard_d
   type(c_ptr) :: central_weight_d, atom_sigma_r_d, atom_sigma_t_d, atom_sigma_t_scaling_d, mask_d
-  integer :: size_1_species, size_2_species, size_species_multiplicity, size_i_beg, size_i_end
-  integer :: size_rcut_hard, size_atom_sigma_t, size_atom_sigma_r, size_2_W, size_2_S,size_1_W, size_1_S
-  integer :: size_atom_sigma_t_scaling
+  integer(c_int) :: size_1_species, size_2_species, size_species_multiplicity, size_i_beg, size_i_end
+  integer(c_int) :: size_rcut_hard, size_atom_sigma_t, size_atom_sigma_r, size_2_W, size_2_S,size_1_W, size_1_S
+  integer(c_int) :: size_atom_sigma_t_scaling, size_global_scaling
+  type(c_ptr) :: global_scaling_d
+  logical(c_bool) :: c_do_derivatives
+  integer :: kij
 !-------------------
 
 
+  st_soap=sizeof(soap) !n_soap*n_sites*sizeof(soap(1,1))
+  call gpu_malloc_all(soap_d, st_soap, gpu_stream)
+
+  st_soap_cart_der= sizeof(soap_cart_der) !  3*n_soap*n_atom_pairs*sizeof(soap_cart_der(1,1,1))
+  call gpu_malloc_all_blocking(soap_cart_der_d, st_soap_cart_der) !call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream)
+!  stop
 if( basis == "poly3gauss" )then
   bintybint=1000
 else if( basis == "poly3" )then
   bintybint=2000
 end if
+
+    c_do_derivatives=logical( .false., kind=c_bool ) 
+    if(do_derivatives) then 
+    c_do_derivatives=logical( .true., kind=c_bool )
+    endif
 
 !Total 24.1 s        
  ! call cpu_time(ttt(1))
@@ -174,29 +194,28 @@ end if
     i_end(i) = i_beg(i) + alpha_max(i) - 1
   end do
 
-  !call gpu_malloc_int(i_beg_d,n_species)
-  !call gpu_malloc_int(i_end_d,n_species)
 
   
   
   !23.8
   !call cpu_time(ttt(1))
+  ! write(*,*)
+  ! write(*,*)
+  ! write(*,*)
+  ! write(*,*) "Firsty firsty"
 
 ! Do some array allocation for the SOAP expansion part
   k_max = 1 + l_max*(l_max+1)/2 + l_max
-  allocate( preflm(1:k_max) ) !real*8
-  call gpu_malloc_double(preflm_d,k_max)
-  allocate( plm_array(1:k_max) ) !real*8
-  !call gpu_malloc_double(plm_array_d,k_max)
-  allocate( eimphi(1:k_max) ) ! complex*16
-  !call gpu_malloc_double_complex(eimphi_d,k_max)
-  allocate( prefl(0:l_max) ) !real*8
-  !call gpu_malloc_double(prefl_d,k_max)
-  allocate( prefm(0:l_max) )! real*8
-  !call gpu_malloc_double(prefm_d,k_max)
+  allocate( preflm(1:k_max) )
+  allocate( plm_array(1:k_max) ) 
+  allocate( eimphi(1:k_max) )
+  allocate( prefl(0:l_max) ) 
+  allocate( prefm(0:l_max) )
   allocate( fact_array(1:l_max) ) !real*8
   call get_preflm(preflm, l_max)
-  call cpy_double_htod( c_loc(preflm), preflm_d, k_max)
+  st_size_preflm=k_max*sizeof(preflm(1))
+  call gpu_malloc_all(preflm_d,st_size_preflm, gpu_stream)
+  call cpy_htod( c_loc(preflm), preflm_d, st_size_preflm, gpu_stream)
   if( do_derivatives )then
     allocate( prefl_rad_der(0:l_max) ) ! real*8
     allocate( eimphi_rad_der(1:k_max) ) ! complex*16
@@ -250,11 +269,6 @@ end if
       deallocate( S_temp, W_temp )
     end do
   end if
-  !write(*,*) my_rank
-  !write(*,*) "W ", size(W,1), size(W,2), " S ", size(S,1), size(S,2)
-  !write(*,*) "k_max ", k_max, "n_max ", n_max
-  !write(*,*)
-  !stop
 
   if( do_timing )then
     call cpu_time(time2)
@@ -267,6 +281,7 @@ end if
 ! This is for the expansion coefficients and the soap vectors
   allocate( radial_exp_coeff(1:n_max, 1:n_atom_pairs) )
   allocate( angular_exp_coeff(1:k_max, 1:n_atom_pairs) )
+  radial_exp_coeff=0.d0
   angular_exp_coeff = 0.d0
   allocate( cnk( 1:k_max, 1:n_max, 1:n_sites) )
   cnk = 0.d0
@@ -306,9 +321,7 @@ end if
   end if
 
   allocate( sqrt_dot_p(1:n_sites) )
-  st_soap=n_soap*n_sites*sizeof(soap(1,1))
 
-  st_soap_cart_der=  3*n_soap*n_atom_pairs*sizeof(soap_cart_der(1,1,1))
   st_soap_rap_der=n_soap*n_atom_pairs*sizeof(soap_rad_der(1,1))
   st_n_atom_pairs_int=n_atom_pairs*sizeof(k3_index(1))
   st_n_sites_int=n_sites*sizeof(n_neigh(1))
@@ -354,6 +367,13 @@ end if
   ! 18.6
   !call cpu_time(ttt(1))
 
+  
+
+  ! write(*,*)
+  ! write(*,*) 
+  ! write(*,*)
+  ! write(*,*) alpha_max
+  ! stop
   do i = 1, n_species
     if( basis == "poly3gauss" )then
       call get_radial_expansion_coefficients_poly3gauss(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
@@ -362,8 +382,6 @@ end if
                                                         scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
                                                         radial_exp_coeff(i_beg(i):i_end(i), :), &
                                                         radial_exp_coeff_der(i_beg(i):i_end(i), :) )
-      radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
-      radial_exp_coeff_der(i_beg(i):i_end(i), :) = radial_exp_coeff_der(i_beg(i):i_end(i), :) * global_scaling(i)
     else if( basis == "poly3" )then
       call get_radial_expansion_coefficients_poly3(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
                                                    rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
@@ -372,21 +390,52 @@ end if
                                                    do_central(i), central_weight(i), &
                                                    radial_exp_coeff(i_beg(i):i_end(i), :), &
                                                    radial_exp_coeff_der(i_beg(i):i_end(i), :) )
-      radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
-      radial_exp_coeff_der(i_beg(i):i_end(i), :) = radial_exp_coeff_der(i_beg(i):i_end(i), :) * global_scaling(i)
     end if
-  end do
-
-
-
-  if( do_timing )then
-    call cpu_time(time2)
-    radial_time = time2 - time1
-    time1 = time2
-  end if
-
-
+   end do
+  
+  ! do kij=1,n_atom_pairs
+  ! do n=1,n_max
+  ! if(isnan(radial_exp_coeff(n,kij))) then
+  ! write(*,*)
+  ! write(*,*) "Nan allert!",n,kij
+  ! !stop
+  ! endif
+  ! enddo
+  ! enddo
   ttt(1)=MPI_Wtime()
+  
+  st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
+  call gpu_malloc_all_blocking(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double) !call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double, gpu_stream)
+  call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, &
+                st_rad_exp_coeff_der_double, gpu_stream)
+
+
+  call gpu_malloc_all(radial_exp_coeff_d, st_rad_exp_coeff_der_double, gpu_stream)
+  call cpy_htod(c_loc(radial_exp_coeff),radial_exp_coeff_d, & 
+                    st_rad_exp_coeff_der_double, gpu_stream)
+  
+  size_rcut_hard=size(rcut_hard,1)
+  st_size_rcut_hard=size_rcut_hard*sizeof(rcut_hard(1))
+  call gpu_malloc_all(rcut_hard_d,st_size_rcut_hard, gpu_stream)
+  call cpy_htod(c_loc(rcut_hard),rcut_hard_d,st_size_rcut_hard, gpu_stream)
+
+  size_i_beg=size(i_beg,1)
+  st_size_i_beg=size_i_beg*sizeof(i_beg(1))
+  call gpu_malloc_all(i_beg_d, st_size_i_beg, gpu_stream)
+  call cpy_htod(c_loc(i_beg),i_beg_d,st_size_i_beg, gpu_stream)
+
+  size_i_end=size(i_end,1)
+  st_size_i_end=size_i_end*sizeof(i_end(1))
+  call gpu_malloc_all(i_end_d, st_size_i_end, gpu_stream)
+  call cpy_htod(c_loc(i_end),i_end_d,st_size_i_end, gpu_stream)
+  
+  size_global_scaling=size(global_scaling,1)
+  st_size_global_scaling=size_global_scaling*sizeof(global_scaling(1))
+  call gpu_malloc_all(global_scaling_d, st_size_global_scaling, gpu_stream)
+  call cpy_htod(c_loc(global_scaling), global_scaling_d, & 
+                       st_size_global_scaling, gpu_stream)
+
+  
   allocate(new_mask(1:n_atom_pairs,1:n_species))
   new_mask= logical( .false., kind=c_bool ) !.false.
   do i_sp=1,n_species
@@ -396,41 +445,71 @@ end if
       endif
     enddo
   enddo
-  call gpu_malloc_bool(mask_d,n_atom_pairs*n_species)
-  call cpy_bool_htod(c_loc(new_mask), mask_d, n_atom_pairs*n_species)
+  st_mask_d= n_atom_pairs*n_species*sizeof(new_mask(1,1))
+  call gpu_malloc_all(mask_d, st_mask_d, gpu_stream)
+  call cpy_htod(c_loc(new_mask), mask_d, st_mask_d, gpu_stream)
 
-    call gpu_malloc_all(rjs_d,st_n_atom_pairs_double)
-    call cpy_htod(c_loc(rjs),rjs_d, st_n_atom_pairs_double)
 
-    call gpu_malloc_all(phis_d,st_n_atom_pairs_double)
-    call cpy_double_htod(c_loc(phis),phis_d, n_atom_pairs) 
-    call gpu_malloc_all(thetas_d,st_n_atom_pairs_double)
-    call cpy_double_htod(c_loc(thetas),thetas_d, n_atom_pairs)
-    
-  st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
-  call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double)
-  call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, st_rad_exp_coeff_der_double)
+  size_atom_sigma_r=size(atom_sigma_r,1)
+  st_size_atom_sigma_r=size_atom_sigma_r*sizeof(atom_sigma_r(1))
+  call gpu_malloc_all(atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
+  call cpy_htod(c_loc(atom_sigma_r),atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
 
-    
-  call gpu_malloc_double(radial_exp_coeff_d, n_max*n_atom_pairs)
-  call cpy_double_htod(c_loc(radial_exp_coeff),radial_exp_coeff_d, n_max*n_atom_pairs)
+  size_1_W=size(W,1)
+  size_2_W=size(W,2)
+  st_size_W=size_1_W*size_2_W*sizeof(W(1,1))
+  call gpu_malloc_all(W_d,st_size_W, gpu_stream)
+  call cpy_htod(c_loc(W),W_d,st_size_W, gpu_stream)
 
-  call gpu_malloc_double_complex(angular_exp_coeff_d, k_max*n_atom_pairs)    
+  size_1_S=size(S,1)
+  size_2_S=size(S,2)
+  st_size_S=size_1_S*size_2_S*sizeof(S(1,1))
+  call gpu_malloc_all(S_d,st_size_S, gpu_stream)
+  call cpy_htod(c_loc(S),S_d,st_size_S, gpu_stream)
+  !  write(*,*) "RoRo ",global_scaling(:), rcut_hard(:)
+  if( do_timing )then
+    call cpu_time(time2)
+    radial_time = time2 - time1
+    time1 = time2
+  end if
+!  stop
+
+
+    call gpu_malloc_all(rjs_d,st_n_atom_pairs_double, gpu_stream)
+    call cpy_htod(c_loc(rjs),rjs_d, st_n_atom_pairs_double,gpu_stream)
+
+    call gpu_malloc_all(phis_d,st_n_atom_pairs_double, gpu_stream)
+    call cpy_htod(c_loc(phis),phis_d, st_n_atom_pairs_double, gpu_stream) 
+    call gpu_malloc_all(thetas_d,st_n_atom_pairs_double, gpu_stream)
+    call cpy_htod(c_loc(thetas),thetas_d, st_n_atom_pairs_double, gpu_stream)
+
+  st_size_angular_exp_coeff=k_max*n_atom_pairs*sizeof(angular_exp_coeff(1,1))
+  call gpu_malloc_all(angular_exp_coeff_d,st_size_angular_exp_coeff,gpu_stream) 
   
   st_ang_exp_coeff_rad_der=k_max*n_atom_pairs*sizeof(angular_exp_coeff_rad_der(1,1))
-  call gpu_malloc_all(angular_exp_coeff_rad_der_d,st_ang_exp_coeff_rad_der)
-  call gpu_malloc_all(angular_exp_coeff_azi_der_d,st_ang_exp_coeff_rad_der)
-  call gpu_malloc_all(angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der)
+  call gpu_malloc_all(angular_exp_coeff_rad_der_d,st_ang_exp_coeff_rad_der,gpu_stream)
+  call gpu_malloc_all(angular_exp_coeff_azi_der_d,st_ang_exp_coeff_rad_der,gpu_stream)
+  call gpu_malloc_all(angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der,gpu_stream)
   
   size_atom_sigma_t=size(atom_sigma_t,1)
-  call gpu_malloc_double(atom_sigma_t_d,size_atom_sigma_t)
-  call cpy_double_htod(c_loc(atom_sigma_t),atom_sigma_t_d,size_atom_sigma_t)
+  st_size_atom_sigma_t=size_atom_sigma_t*sizeof(atom_sigma_t(1))
+  call gpu_malloc_all(atom_sigma_t_d,st_size_atom_sigma_t,gpu_stream)
+  call cpy_htod(c_loc(atom_sigma_t),atom_sigma_t_d,st_size_atom_sigma_t, gpu_stream)
   
   size_atom_sigma_t_scaling=size(atom_sigma_t_scaling,1)
-  call gpu_malloc_double(atom_sigma_t_scaling_d,size_atom_sigma_t_scaling)
-  call cpy_double_htod(c_loc(atom_sigma_t_scaling),atom_sigma_t_scaling_d,size_atom_sigma_t)
+  st_size_atom_sigma_t_scaling=size_atom_sigma_t_scaling*sizeof(atom_sigma_t_scaling(1))
+  call gpu_malloc_all(atom_sigma_t_scaling_d,st_size_atom_sigma_t_scaling,gpu_stream)
+  call cpy_htod(c_loc(atom_sigma_t_scaling),atom_sigma_t_scaling_d, & 
+                                               st_size_atom_sigma_t, gpu_stream)
 
+  
 
+  call gpu_get_radial_exp_coeff(radial_exp_coeff_d, radial_exp_coeff_der_d, &
+                                i_beg_d, i_end_d, &
+                                global_scaling_d, &
+                                n_max, n_atom_pairs, n_species, &
+                                c_do_derivatives, bintybint, &
+                                rcut_hard_d, gpu_stream)
 ! For the angular expansion the masking works differently, since we do not have a species-augmented basis as in the
 ! radial expansion part.
   call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_t, atom_sigma_t_scaling, &
@@ -441,7 +520,7 @@ end if
                                           angular_exp_coeff_d, angular_exp_coeff_rad_der_d, &
                                           angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, n_atom_pairs, &
                                           thetas_d, preflm_d, rjs_d, phis_d, mask_d,  &
-                                          atom_sigma_t_d, atom_sigma_t_scaling_d)
+                                          atom_sigma_t_d, atom_sigma_t_scaling_d,gpu_stream)
   if( do_timing )then
     call cpu_time(time2)
     angular_time = time2 - time1
@@ -482,60 +561,33 @@ end if
   enddo
 
   st_cnk=k_max*n_max*n_sites*sizeof(cnk(1,1,1))
-  !write(*,*) st_cnk, k_max*n_max*n_sites*16
-  !stop
-  call gpu_malloc_all_blocking(cnk_d,st_cnk)
-  !call gpu_malloc_double_complex(cnk_d,k_max*n_max*n_sites)
 
-  call gpu_malloc_int(k2_start_d,n_sites)
-  call cpy_int_htod(c_loc(k2_start), k2_start_d, n_sites)
+  call gpu_malloc_all(cnk_d,st_cnk,gpu_stream)
+  ! call gpu_malloc_double_complex(cnk_d, k_max*n_max*n_sites)
+  
+  call gpu_malloc_all(k2_start_d,st_n_sites_int,gpu_stream)
+  call cpy_htod(c_loc(k2_start), k2_start_d, st_n_sites_int, gpu_stream)
+  
 
-
-  call gpu_malloc_int(n_neigh_d,n_sites)
-  !call cpy_int_htod(c_loc(n_neigh),n_neigh_d, n_sites)
-  !call gpu_malloc_all(n_neigh_d,st_n_sites_int)
-  call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int)
+  call gpu_malloc_all(n_neigh_d,st_n_sites_int,gpu_stream)
+  call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int,gpu_stream)
 
   size_1_species=size(species,1)
   size_2_species=size(species,2)
-  call gpu_malloc_int(species_d,size_1_species*size_2_species)
-  call cpy_int_htod(c_loc(species),species_d,size_1_species*size_2_species)
+  st_size_species=size_1_species*size_2_species*sizeof(species(1,1))
+  call gpu_malloc_all(species_d, st_size_species,gpu_stream)
+  call cpy_htod(c_loc(species),species_d,st_size_species, gpu_stream)
 
   size_species_multiplicity=size(species_multiplicity,1)
-  call gpu_malloc_int(species_multiplicity_d,size_species_multiplicity)
-  call cpy_int_htod(c_loc(species_multiplicity), species_multiplicity_d,size_species_multiplicity)
-
-  size_i_beg=size(i_beg,1)
-  call gpu_malloc_int(i_beg_d, size_i_beg)
-  call cpy_int_htod(c_loc(i_beg),i_beg_d,size_i_beg)
-
-  size_i_end=size(i_end,1)
-  call gpu_malloc_int(i_end_d, size_i_end)
-  call cpy_int_htod(c_loc(i_end),i_end_d,size_i_end)
-
+  st_size_species_multiplicity=size_species_multiplicity*sizeof(species_multiplicity(1))
+  call gpu_malloc_all(species_multiplicity_d,st_size_species_multiplicity,gpu_stream)
+  call cpy_htod(c_loc(species_multiplicity), species_multiplicity_d, &
+                                     st_size_species_multiplicity,gpu_stream)
+  
   size_central_weight=size(central_weight,1)
-  call gpu_malloc_double(central_weight_d,size_central_weight)
-  call  cpy_double_htod(c_loc(central_weight),central_weight_d,size_central_weight)
-
-  size_rcut_hard=size(rcut_hard,1)
-  call gpu_malloc_double(rcut_hard_d,size_rcut_hard)
-  call  cpy_double_htod(c_loc(rcut_hard),rcut_hard_d,size_rcut_hard)
-
-
-  size_atom_sigma_r=size(atom_sigma_r,1)
-  call gpu_malloc_double(atom_sigma_r_d,size_atom_sigma_r)
-  call cpy_double_htod(c_loc(atom_sigma_r),atom_sigma_r_d,size_atom_sigma_r)
-
-  size_1_W=size(W,1)
-  size_2_W=size(W,2)
-  call gpu_malloc_double(W_d,size_1_W*size_2_W)
-  call cpy_double_htod(c_loc(W),W_d,size_1_W*size_2_W)
-
-  size_1_S=size(S,1)
-  size_2_S=size(S,2)
-  call gpu_malloc_double(S_d,size_1_S*size_2_S)
-  call cpy_double_htod(c_loc(S),S_d,size_1_S*size_2_S)
-
+  st_size_central_weight= size_central_weight*sizeof(central_weight(1))
+  call gpu_malloc_all(central_weight_d,st_size_central_weight,gpu_stream)
+  call cpy_htod(c_loc(central_weight),central_weight_d,st_size_central_weight, gpu_stream)
 
   call gpu_get_cnk(radial_exp_coeff_d, angular_exp_coeff_d, &
                              cnk_d, &
@@ -545,13 +597,10 @@ end if
                              atom_sigma_r_d, atom_sigma_t_d, rcut_hard_d, &
                              central_weight_d, species_d, i_beg_d, i_end_d, &
                              radial_enhancement, species_multiplicity_d, &
-                             W_d, S_d, size_1_species)
+                             W_d, S_d, size_1_species, gpu_stream)
 
-  !call cpy_double_complex_dtoh(cnk_d,c_loc(cnk),k_max*n_max*n_sites)
-  
-  !  call cpy_htod(c_loc(cnk), cnk_d, st_cnk)
-    call gpu_malloc_all(soap_d, st_soap)
-    call cpy_htod(c_loc(soap), soap_d, st_soap)
+
+    call cpy_htod(c_loc(soap), soap_d, st_soap, gpu_stream)
 
 ! 12.6 s
   !call cpu_time(ttt(1)) 
@@ -563,16 +612,19 @@ end if
   pi = dacos(-1.d0)
     
     st_cnk_rap_der=k_max*n_max*n_atom_pairs*sizeof(cnk_rad_der(1,1,1))
-    call gpu_malloc_all(cnk_rad_der_d,st_cnk_rap_der)
-    call gpu_malloc_all(cnk_azi_der_d,st_cnk_rap_der)
-    call gpu_malloc_all(cnk_pol_der_d,st_cnk_rap_der)
+    call gpu_malloc_all(cnk_rad_der_d,st_cnk_rap_der,gpu_stream)
+    call gpu_malloc_all(cnk_azi_der_d,st_cnk_rap_der,gpu_stream)
+    call gpu_malloc_all(cnk_pol_der_d,st_cnk_rap_der,gpu_stream)
+    ! call gpu_malloc_double_complex(cnk_rad_der_d,k_max*n_max*n_atom_pairs)
+    ! call gpu_malloc_double_complex(cnk_azi_der_d,k_max*n_max*n_atom_pairs)
+    ! call gpu_malloc_double_complex(cnk_pol_der_d,k_max*n_max*n_atom_pairs)
 
     call gpu_get_derivatives(radial_exp_coeff_d, angular_exp_coeff_d, radial_exp_coeff_der_d, &
                                   angular_exp_coeff_rad_der_d, angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, &
                                   cnk_rad_der_d, cnk_azi_der_d, cnk_pol_der_d, &
                                   rjs_d, &
                                   rcut_max, &
-                                  n_atom_pairs, n_soap, k_max, n_max, l_max) 
+                                  n_atom_pairs, n_sites,  n_soap, k_max, n_max, l_max, gpu_stream) 
 
 
   end if
@@ -636,18 +688,18 @@ end if
   n_multiplicity=size(multiplicity_array,1)
   st_n_multiplicity_double=n_multiplicity*sizeof(multiplicity_array(1))
   
-  call gpu_malloc_all(k2_i_site_d,st_n_atom_pairs_int)
-  call cpy_htod(c_loc(k2_i_site),k2_i_site_d, st_n_atom_pairs_int)
-  call gpu_malloc_all(multiplicity_array_d, st_n_multiplicity_double)
-  call cpy_htod(c_loc( multiplicity_array), multiplicity_array_d, st_n_multiplicity_double)
+  call gpu_malloc_all(k2_i_site_d,st_n_atom_pairs_int,gpu_stream)
+  call cpy_htod(c_loc(k2_i_site),k2_i_site_d, st_n_atom_pairs_int, gpu_stream)
+  call gpu_malloc_all(multiplicity_array_d, st_n_multiplicity_double,gpu_stream)
+  call cpy_htod(c_loc( multiplicity_array), multiplicity_array_d, st_n_multiplicity_double, gpu_stream)
   
-  call gpu_malloc_all(sqrt_dot_p_d, st_n_sites_double)
-  call gpu_malloc_all(skip_soap_component_d, st_skip_component)
-  call cpy_htod(c_loc(skip_soap_component), skip_soap_component_d, st_skip_component)
+  call gpu_malloc_all(sqrt_dot_p_d, st_n_sites_double,gpu_stream)
+  call gpu_malloc_all(skip_soap_component_d, st_skip_component,gpu_stream)
+  call cpy_htod(c_loc(skip_soap_component), skip_soap_component_d, st_skip_component,gpu_stream)
   
   call gpu_get_sqrt_dot_p(sqrt_dot_p_d, soap_d, multiplicity_array_d, &
                                     cnk_d, skip_soap_component_d,  &
-                                    n_sites, n_soap, n_max,l_max)
+                                    n_sites, n_soap, n_max,l_max, gpu_stream)
 
 
   if( do_derivatives )then
@@ -680,21 +732,19 @@ end if
     
 
 
-    call gpu_malloc_all(i_k2_start_d,st_n_sites_int)
-    call cpy_htod(c_loc(i_k2_start),i_k2_start_d,st_n_sites_int)
+    call gpu_malloc_all(i_k2_start_d,st_n_sites_int,gpu_stream)
+    call cpy_htod(c_loc(i_k2_start),i_k2_start_d,st_n_sites_int, gpu_stream)
 
-    call gpu_malloc_all(k3_index_d,st_n_atom_pairs_int)
-    call cpy_htod(c_loc(k3_index),k3_index_d, st_n_atom_pairs_int)
+    call gpu_malloc_all(k3_index_d,st_n_atom_pairs_int,gpu_stream)
+    call cpy_htod(c_loc(k3_index),k3_index_d, st_n_atom_pairs_int, gpu_stream)
+    !call cpy_htod(c_loc(soap_cart_der),soap_cart_der_d, st_soap_cart_der)
+    call gpu_malloc_all(soap_rad_der_d, st_soap_rap_der,gpu_stream)
+    call gpu_malloc_all(soap_azi_der_d, st_soap_rap_der,gpu_stream)
+    call gpu_malloc_all(soap_pol_der_d, st_soap_rap_der,gpu_stream)
 
-    call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der)
-    call cpy_htod(c_loc(soap_cart_der),soap_cart_der_d, st_soap_cart_der)
-    call gpu_malloc_all(soap_rad_der_d, st_soap_rap_der)
-    call gpu_malloc_all(soap_azi_der_d, st_soap_rap_der)
-    call gpu_malloc_all(soap_pol_der_d, st_soap_rap_der)
-
-    call cpy_htod(c_loc(soap_rad_der),soap_rad_der_d, st_soap_rap_der)
-    call cpy_htod(c_loc(soap_azi_der),soap_azi_der_d, st_soap_rap_der)
-    call cpy_htod(c_loc(soap_pol_der),soap_pol_der_d, st_soap_rap_der)
+    ! call cpy_htod(c_loc(soap_rad_der),soap_rad_der_d, st_soap_rap_der)
+    ! call cpy_htod(c_loc(soap_azi_der),soap_azi_der_d, st_soap_rap_der)
+    ! call cpy_htod(c_loc(soap_pol_der),soap_pol_der_d, st_soap_rap_der)
 
     call gpu_get_soap_der(soap_d, sqrt_dot_p_d, soap_cart_der_d, &
                           soap_rad_der_d, soap_azi_der_d, soap_pol_der_d, &
@@ -702,40 +752,40 @@ end if
                           multiplicity_array_d, &
                           cnk_d, cnk_rad_der_d, cnk_azi_der_d, cnk_pol_der_d, &
                           n_neigh_d, i_k2_start_d, k2_i_site_d, k3_index_d, skip_soap_component_d, &
-                          n_sites, n_atom_pairs, n_soap, k_max, n_max, l_max, maxneigh) 
+                          n_sites, n_atom_pairs, n_soap, k_max, n_max, l_max, maxneigh, gpu_stream) 
     
-    call cpy_dtoh(soap_cart_der_d,c_loc(soap_cart_der), st_soap_cart_der)
+    !call cpy_dtoh(soap_cart_der_d,c_loc(soap_cart_der), st_soap_cart_der)
 
   end if
 ! Now we normalize the soap vectors:
-  call gpu_soap_normalize(soap_d, sqrt_dot_p_d, n_soap, n_sites)
-  call cpy_dtoh(soap_d, c_loc(soap), st_soap)
+  call gpu_soap_normalize(soap_d, sqrt_dot_p_d, n_soap, n_sites, gpu_stream)
+  !call cpy_dtoh(soap_d, c_loc(soap), st_soap)
 
 
 ! This is for debugging
  if( .false. )then
     
-    call cpy_dtoh(soap_rad_der_d, c_loc(soap_rad_der),st_soap)
-    call cpy_dtoh(soap_azi_der_d, c_loc(soap_azi_der),st_soap)
-    call cpy_dtoh(soap_pol_der_d, c_loc(soap_pol_der),st_soap)
-    call cpy_dtoh(sqrt_dot_p_d, c_loc(sqrt_dot_p), st_soap) ! blocking or asynchronous?
+    call cpy_dtoh(soap_rad_der_d, c_loc(soap_rad_der),st_soap, gpu_stream)
+    call cpy_dtoh(soap_azi_der_d, c_loc(soap_azi_der),st_soap, gpu_stream)
+    call cpy_dtoh(soap_pol_der_d, c_loc(soap_pol_der),st_soap, gpu_stream)
+    call cpy_dtoh(sqrt_dot_p_d, c_loc(sqrt_dot_p), st_soap, gpu_stream) ! blocking or asynchronous?
 
    open(unit=10, file="gpu_soap_desc.dat", status="unknown")
 
    do i = 1, 23 
     write(10, *) soap(1:n_soap, i)
    enddo
-   open(unit=10, file="gpu_soap_rad_der.dat", status="unknown", access="append")
+   open(unit=10, file="gpu_soap_rad_der.dat", status="unknown", position="append")
    do i = 1, 23 
    write(10, *) soap_rad_der(1:n_soap, i)
    enddo
    close(10)
-   open(unit=10, file="gpu_soap_azi_der.dat", status="unknown", access="append")
+   open(unit=10, file="gpu_soap_azi_der.dat", status="unknown", position="append")
    do i = 1, 23 
    write(10, *) soap_azi_der(1:n_soap, i)
    enddo
    close(10)
-   open(unit=10, file="gpu_soap_pol_der.dat", status="unknown", access="append")
+   open(unit=10, file="gpu_soap_pol_der.dat", status="unknown", position="append")
    do i = 1, 23 
    write(10, *) soap_pol_der(1:n_soap, i)
    enddo
@@ -748,7 +798,7 @@ end if
      write(10, *)
    end do
    close(10)
-   open(unit=10, file="gpu_norm.dat", status="unknown", access="append")
+   open(unit=10, file="gpu_norm.dat", status="unknown", position="append")
    write(10, *) sqrt_dot_p(317)
    close(10)
   stop
@@ -765,24 +815,24 @@ end if
     deallocate( radial_exp_coeff_der, angular_exp_coeff_rad_der, soap_rad_der, soap_azi_der, soap_pol_der, &
                 cnk_rad_der, cnk_azi_der, cnk_pol_der, eimphi_rad_der, angular_exp_coeff_azi_der, &
                 prefl_rad_der, angular_exp_coeff_pol_der,k3_index)
-  call gpu_free_async(soap_rad_der_d)
-  call gpu_free_async(soap_azi_der_d)
-  call gpu_free_async(soap_pol_der_d)
-  call gpu_free_async(cnk_rad_der_d)
-  call gpu_free_async(cnk_azi_der_d)
-  call gpu_free_async(cnk_pol_der_d)
-  call gpu_free_async(k3_index_d)
-  call gpu_free_async(i_k2_start_d)
-  call gpu_free_async(radial_exp_coeff_d)
-  call gpu_free_async(radial_exp_coeff_der_d)
-  call gpu_free_async(angular_exp_coeff_d)
-  call gpu_free_async(angular_exp_coeff_rad_der_d)
-  call gpu_free_async(angular_exp_coeff_azi_der_d)
-  call gpu_free_async(angular_exp_coeff_pol_der_d)
+  call gpu_free_async(soap_rad_der_d,gpu_stream)
+  call gpu_free_async(soap_azi_der_d,gpu_stream)
+  call gpu_free_async(soap_pol_der_d,gpu_stream)
+  call gpu_free_async(cnk_rad_der_d,gpu_stream)
+  call gpu_free_async(cnk_azi_der_d,gpu_stream)
+  call gpu_free_async(cnk_pol_der_d,gpu_stream)
+  call gpu_free_async(k3_index_d,gpu_stream)
+  call gpu_free_async(i_k2_start_d,gpu_stream)
+  call gpu_free_async(radial_exp_coeff_d,gpu_stream)
+  call gpu_free_async(radial_exp_coeff_der_d,gpu_stream)
+  call gpu_free_async(angular_exp_coeff_d,gpu_stream)
+  call gpu_free_async(angular_exp_coeff_rad_der_d,gpu_stream)
+  call gpu_free_async(angular_exp_coeff_azi_der_d,gpu_stream)
+  call gpu_free_async(angular_exp_coeff_pol_der_d,gpu_stream)
 
   else
     deallocate( radial_exp_coeff_der )
-    call gpu_free_async(radial_exp_coeff_der_d)
+    call gpu_free_async(radial_exp_coeff_der_d,gpu_stream)
   end if
 
   if( do_timing )then
@@ -805,30 +855,31 @@ end if
     write(*,*)'                                       |'
     write(*,*)'.......................................|'
   end if
-  call gpu_free_async(thetas_d)
-  call gpu_free_async(phis_d)
-  call gpu_free_async(rjs_d)
+  call gpu_free_async(thetas_d,gpu_stream)
+  call gpu_free_async(phis_d,gpu_stream)
+  call gpu_free_async(rjs_d,gpu_stream)
   deallocate(new_mask)
-  call gpu_free_async(mask_d)
-  call gpu_free_async(atom_sigma_t_d)
-  call gpu_free_async(atom_sigma_t_scaling_d)
-  call gpu_free_async(atom_sigma_r_d)
-  call gpu_free_async(k2_start_d)
-  call gpu_free_async(n_neigh_d)
-  call gpu_free_async(species_d)
-  call gpu_free_async(species_multiplicity_d)
-  call gpu_free_async(rcut_hard_d)
-  call gpu_free_async(W_d)
-  call gpu_free_async(S_d)
-  call gpu_free_async(k2_i_site_d)
-  call gpu_free_async(preflm_d)
-  call gpu_free_async(i_beg_d)
-  call gpu_free_async(i_end_d)
-  call gpu_free_async(multiplicity_array_d)
-  call gpu_free_async(skip_soap_component_d)
-  call gpu_free_async(cnk_d)
-  call gpu_free_async(sqrt_dot_p_d)
-  call gpu_free_async(central_weight_d)
+  call gpu_free_async(mask_d,gpu_stream)
+  call gpu_free_async(atom_sigma_t_d,gpu_stream)
+  call gpu_free_async(atom_sigma_t_scaling_d,gpu_stream)
+  call gpu_free_async(atom_sigma_r_d,gpu_stream)
+  call gpu_free_async(k2_start_d,gpu_stream)
+  call gpu_free_async(n_neigh_d,gpu_stream)
+  call gpu_free_async(species_d,gpu_stream)
+  call gpu_free_async(species_multiplicity_d,gpu_stream)
+  call gpu_free_async(rcut_hard_d,gpu_stream)
+  call gpu_free_async(W_d,gpu_stream)
+  call gpu_free_async(S_d,gpu_stream)
+  call gpu_free_async(k2_i_site_d,gpu_stream)
+  call gpu_free_async(preflm_d,gpu_stream)
+  call gpu_free_async(i_beg_d,gpu_stream)
+  call gpu_free_async(i_end_d,gpu_stream)
+  call gpu_free_async(multiplicity_array_d,gpu_stream)
+  call gpu_free_async(skip_soap_component_d,gpu_stream)
+  call gpu_free_async(sqrt_dot_p_d,gpu_stream)
+  call gpu_free_async(central_weight_d,gpu_stream)
+  call gpu_free_async(global_scaling_d,gpu_stream)
+  call gpu_free_async(cnk_d,gpu_stream)
 
   !call cpu_time(ttt(2))
   ttt(2)=MPI_Wtime()

@@ -384,7 +384,7 @@ module soap_turbo_angular
                                                 exp_coeff_d, exp_coeff_rad_der_d, &
                                                 exp_coeff_azi_der_d, exp_coeff_pol_der_d, n_atom_pairs, &
                                                 thetas_d, preflm_d, rjs_d, phis_d, mask_d, &
-                                                atom_sigma_in_d, atom_sigma_scaling_d)
+                                                atom_sigma_in_d, atom_sigma_scaling_d,gpu_stream)
 
     implicit none
 
@@ -420,6 +420,8 @@ module soap_turbo_angular
     type(c_ptr) :: prefl_array_global_der_d
     real(c_double), allocatable, target :: plm_array_div_sin_global(:,:), plm_array_der_mul_sin_global(:,:)
     type(c_ptr) :: plm_array_div_sin_d, plm_array_der_mul_sin_d
+    integer(c_size_t) :: st_prefl_array_global, st_plm_array_global,  st_eimphi_global, st_plm_array_der_global
+    type(c_ptr), intent(inout) :: gpu_stream
     
     c_do_derivatives=logical( .false., kind=c_bool ) 
     if(do_derivatives) then 
@@ -432,31 +434,35 @@ module soap_turbo_angular
     if( do_derivatives )then
       kmax_der = 1 + (lmax+1)*(lmax+2)/2 + lmax+1
     end if
-
-    call gpu_malloc_double(prefl_array_global_d, (lmax+1)*n_atom_pairs)
-    call gpu_malloc_double(plm_array_global_d, kmax*n_atom_pairs)
-    call gpu_malloc_double_complex(eimphi_global_d, kmax*n_atom_pairs)
+    
+    st_prefl_array_global= (lmax+1)*n_atom_pairs*sizeof(rcut) !c_double !sizeof(rcut)
+    st_plm_array_global= kmax*n_atom_pairs*sizeof(rcut) !c_double !sizeof(rcut)
+    st_eimphi_global = kmax*n_atom_pairs*sizeof(exp_coeff(1,1)) !c_double_complex !sizeof(exp_coeff(1,1))
+    call gpu_malloc_all(prefl_array_global_d, st_prefl_array_global,gpu_stream) ! call gpu_malloc_double(prefl_array_global_d, (lmax+1)*n_atom_pairs)
+    call gpu_malloc_all(plm_array_global_d, st_plm_array_global,gpu_stream) ! call gpu_malloc_double(plm_array_global_d, kmax*n_atom_pairs)
+    call gpu_malloc_all(eimphi_global_d, st_eimphi_global,gpu_stream) !call gpu_malloc_double_complex(eimphi_global_d, kmax*n_atom_pairs)
 
     if(do_derivatives) then
-    call gpu_malloc_double(prefl_array_global_der_d, (lmax+1)*n_atom_pairs)
+    call gpu_malloc_all(prefl_array_global_der_d, st_prefl_array_global,gpu_stream) !call gpu_malloc_double(prefl_array_global_der_d, (lmax+1)*n_atom_pairs)
 
-    call gpu_malloc_double_complex(eimphi_rad_der_global_d, kmax*n_atom_pairs)
-    call gpu_malloc_double_complex(eimphi_azi_der_global_d, kmax*n_atom_pairs)
+    call gpu_malloc_all(eimphi_rad_der_global_d, st_eimphi_global ,gpu_stream) ! call gpu_malloc_double_complex(eimphi_rad_der_global_d, kmax*n_atom_pairs)
+    call gpu_malloc_all(eimphi_azi_der_global_d, st_eimphi_global,gpu_stream) ! call gpu_malloc_double_complex(eimphi_azi_der_global_d, kmax*n_atom_pairs)
     
-    call gpu_malloc_double(plm_array_div_sin_d, kmax*n_atom_pairs)
-    call gpu_malloc_double(plm_array_der_mul_sin_d, kmax*n_atom_pairs)
+    call gpu_malloc_all(plm_array_div_sin_d, st_plm_array_global,gpu_stream) !call gpu_malloc_double(plm_array_div_sin_d, kmax*n_atom_pairs)
+    call gpu_malloc_all(plm_array_der_mul_sin_d, st_plm_array_global,gpu_stream) !call gpu_malloc_double(plm_array_der_mul_sin_d, kmax*n_atom_pairs)
 
     endif
 
     call  gpu_get_plm_array_global(plm_array_global_d, n_atom_pairs, kmax, &
-                              lmax, thetas_d) 
+                              lmax, thetas_d, gpu_stream) 
     
     
     if(do_derivatives) then
     lmpo=lmax+1 
-    call gpu_malloc_double(plm_array_der_global_d, kmax_der*n_atom_pairs)
+    st_plm_array_der_global= kmax_der*n_atom_pairs*sizeof(rcut)
+    call gpu_malloc_all(plm_array_der_global_d, st_plm_array_der_global, gpu_stream) !call gpu_malloc_double(plm_array_der_global_d, kmax_der*n_atom_pairs)
     call gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
-                              lmpo, thetas_d )
+                              lmpo, thetas_d, gpu_stream )
     
     endif
 
@@ -471,21 +477,22 @@ module soap_turbo_angular
                                   c_do_derivatives, &
                                   eimphi_rad_der_global_d, eimphi_azi_der_global_d, &
                                   plm_array_div_sin_d, plm_array_der_mul_sin_d, &
-                                  exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d) 
+                                  exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d, &
+                                  gpu_stream) 
 
 
 
     if( do_derivatives )then
-      call gpu_free_async(plm_array_der_mul_sin_d)
-      call gpu_free_async(plm_array_div_sin_d)
-      call gpu_free_async(plm_array_der_global_d)
-      call gpu_free_async(prefl_array_global_der_d)
-      call gpu_free_async(eimphi_azi_der_global_d)
-      call gpu_free_async(eimphi_rad_der_global_d)
+      call gpu_free_async(plm_array_der_mul_sin_d,gpu_stream)
+      call gpu_free_async(plm_array_div_sin_d,gpu_stream)
+      call gpu_free_async(plm_array_der_global_d,gpu_stream)
+      call gpu_free_async(prefl_array_global_der_d,gpu_stream)
+      call gpu_free_async(eimphi_azi_der_global_d,gpu_stream)
+      call gpu_free_async(eimphi_rad_der_global_d,gpu_stream)
     end if
-    call gpu_free_async(plm_array_global_d)
-    call gpu_free_async(eimphi_global_d)
-    call gpu_free_async(prefl_array_global_d)
+    call gpu_free_async(plm_array_global_d,gpu_stream)
+    call gpu_free_async(eimphi_global_d,gpu_stream)
+    call gpu_free_async(prefl_array_global_d,gpu_stream)
   return
   end subroutine get_angular_expansion_coefficients
 !**************************************************************************
