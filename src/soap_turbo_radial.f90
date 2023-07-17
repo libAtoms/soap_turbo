@@ -106,6 +106,7 @@ module soap_turbo_radial
     else
       alpha_max_der = alpha_max
     end if
+    
     allocate( exp_coeff_temp1(1:alpha_max_der) )
     allocate( exp_coeff_temp2(1:alpha_max_der) )
     allocate( exp_coeff_der_temp(1:alpha_max) )
