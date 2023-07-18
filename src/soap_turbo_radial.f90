@@ -345,11 +345,11 @@ module soap_turbo_radial
 
 !   This is for debugging
     if( .false. )then
-      open(10, file="radial_expansion_coefficients.dat", status="unknown", access="append")
+      open(10, file="radial_expansion_coefficients.dat", status="unknown", position="append")
       write(10,*) exp_coeff(1:alpha_max, 2)
       close(10)
       if( do_derivatives )then
-        open(10, file="radial_expansion_derivatives.dat", status="unknown", access="append")
+        open(10, file="radial_expansion_derivatives.dat", status="unknown", position="append")
         write(10,*) exp_coeff_der(1:alpha_max, 2)
         close(10)
       end if
@@ -669,6 +669,16 @@ module soap_turbo_radial
             exp_coeff_der(1:alpha_max, k) = matmul( W, exp_coeff_der_temp(1:alpha_max) )
           end if
           exp_coeff(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max) )
+          
+          do n=1,size(exp_coeff,1)
+            if(isnan(exp_coeff(n,k))) then
+              write(*,*)
+              write(*,*) "Nan allert! in radial subroutine",n,k,i,j
+              write(*,*) pref_f 
+              write(*,*) exp_coeff_temp2(1:alpha_max) 
+              stop
+            endif
+          enddo
         end if
       end do
     end do
@@ -685,26 +695,28 @@ module soap_turbo_radial
 !   ***********************************
     
   
-    k=0
-    do i = 1, n_sites
-      do j = 1, n_neigh(i)
-        k = k + 1
-  do n=1,size(exp_coeff,1)
-  if(isnan(exp_coeff(n,kij))) then
-  write(*,*)
-  write(*,*) "Nan allert! in radial subroutine",n,k,i
-  !stop
-  endif
-  enddo
-  enddo
-  enddo
+  !   k=0
+  !   do i = 1, n_sites
+  !     do j = 1, n_neigh(i)
+  !       k = k + 1
+  ! do n=1,size(exp_coeff,1)
+  ! if(isnan(exp_coeff(n,kij))) then
+  ! write(*,*)
+  ! write(*,*) "Nan allert! in radial subroutine",n,k,i
+  ! write(*,*) pref_f 
+  ! write(*,*) exp_coeff_temp2(1:alpha_max) 
+  ! !stop
+  ! endif
+  ! enddo
+  ! enddo
+  ! enddo
 !   This is for debugging
     if( .false. )then
-      open(10, file="coefficients.dat", status="unknown", access="append")
+      open(10, file="coefficients.dat", status="unknown", position="append")
       write(10,*) exp_coeff(1:alpha_max, 1)
       close(10)
       if( do_derivatives )then
-        open(10, file="derivatives.dat", status="unknown", access="append")
+        open(10, file="derivatives.dat", status="unknown", position="append")
         write(10,*) exp_coeff_der(1:alpha_max, 1)
         close(10)
       end if
