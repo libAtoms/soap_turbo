@@ -670,17 +670,22 @@ module soap_turbo_radial
           end if
           exp_coeff(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max) )
           
-          do n=1,size(exp_coeff,1)
-            if(isnan(exp_coeff(n,k))) then
-              write(*,*)
-              write(*,*) "Nan allert! in radial subroutine",n,k,i,j
-              write(*,*) pref_f 
-              write(*,*) exp_coeff_temp2(1:alpha_max) 
-              stop
-            endif
-          enddo
         end if
-      end do
+        ! do n=1,alpha_max
+        !   if(isnan(exp_coeff(n,k)).or.isnan(exp_coeff_temp1(n)).or.isnan(exp_coeff_temp2(n)).or.isnan(pref_f)) then
+        !     write(*,*)
+        !     write(*,*) "Nan allert! in radial subroutine",n,k,i,j
+        !     write(*,*) pref_f , exp_coeff(n,k)
+        !     stop
+        !   endif
+        !  enddo
+      !   if(k.eq.19855) then
+      !     open(unit=666, position=append)
+      !     write(666,*) "Test"
+      !     write(666,*) exp_coeff(3,k), exp_coeff(6,k), pref_f,exp_coeff_temp1(3),exp_coeff_temp1(6),exp_coeff_temp2(3),exp_coeff_temp2(6)
+      !     close(666)
+      !   endif
+       end do
     end do
 !   **************** New basis ******************
 !   This results from the change of variable in the
@@ -695,21 +700,19 @@ module soap_turbo_radial
 !   ***********************************
     
   
-  !   k=0
-  !   do i = 1, n_sites
-  !     do j = 1, n_neigh(i)
-  !       k = k + 1
-  ! do n=1,size(exp_coeff,1)
-  ! if(isnan(exp_coeff(n,kij))) then
-  ! write(*,*)
-  ! write(*,*) "Nan allert! in radial subroutine",n,k,i
-  ! write(*,*) pref_f 
-  ! write(*,*) exp_coeff_temp2(1:alpha_max) 
-  ! !stop
-  ! endif
-  ! enddo
-  ! enddo
-  ! enddo
+    ! k=0
+    ! do i = 1, n_sites
+    !   do j = 1, n_neigh(i)
+    !     k = k + 1
+    !     do n=1,alpha_max
+    !       if(isnan(exp_coeff(n,k))) then
+    !         write(*,*)
+    !         write(*,*) "Nan allert! in radial subroutine",n,k,i
+    !         write(*,*) pref_f, exp_coeff(n,k)
+    !       endif
+    !     enddo
+    !   enddo
+    ! enddo
 !   This is for debugging
     if( .false. )then
       open(10, file="coefficients.dat", status="unknown", position="append")
