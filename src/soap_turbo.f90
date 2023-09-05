@@ -406,7 +406,7 @@ end if
   ttt(1)=MPI_Wtime()
   
   st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
-  call gpu_malloc_all_blocking(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double) !call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double, gpu_stream)
+  call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double , gpu_stream) !call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double, gpu_stream)
   call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, &
                 st_rad_exp_coeff_der_double, gpu_stream)
 
@@ -825,8 +825,7 @@ end if
   call gpu_free_async(cnk_pol_der_d,gpu_stream)
   call gpu_free_async(k3_index_d,gpu_stream)
   call gpu_free_async(i_k2_start_d,gpu_stream)
-  call gpu_free_async(radial_exp_coeff_d,gpu_stream)
-  call gpu_free_async(radial_exp_coeff_der_d,gpu_stream)
+  call gpu_free_async(radial_exp_coeff_d,gpu_stream)!call gpu_free_async(radial_exp_coeff_der_d,gpu_stream)
   call gpu_free_async(angular_exp_coeff_d,gpu_stream)
   call gpu_free_async(angular_exp_coeff_rad_der_d,gpu_stream)
   call gpu_free_async(angular_exp_coeff_azi_der_d,gpu_stream)
