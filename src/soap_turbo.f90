@@ -39,7 +39,7 @@ module soap_turbo_desc
                       atom_sigma_r_scaling, atom_sigma_t, atom_sigma_t_scaling, &
                       amplitude_scaling, radial_enhancement, central_weight, basis, scaling_mode, do_timing, &
                       do_derivatives, compress_soap, compress_soap_indices, soap, soap_cart_der, time_get_soap, &
-                      soap_d,  soap_cart_der_d, gpu_stream)
+                      soap_d,  soap_cart_der_d, n_neigh_d, k2_i_site_d, gpu_stream)
 
   implicit none
 
@@ -101,7 +101,8 @@ module soap_turbo_desc
   real*8, intent(inout) :: time_get_soap
   integer :: maxneigh
   type(c_ptr) ::  thetas_d,phis_d,rjs_d
-  type(c_ptr) ::  k2_i_site_d, k3_index_d, i_k2_start_d, n_neigh_d
+  type(c_ptr) ::  k2_i_site_d
+  type(c_ptr) :: k3_index_d, i_k2_start_d, n_neigh_d
   type(c_ptr) :: soap_rad_der_d, soap_azi_der_d, soap_pol_der_d
   type(c_ptr) :: cnk_rad_der_d, cnk_azi_der_d,  cnk_pol_der_d
   type(c_ptr) :: radial_exp_coeff_d, angular_exp_coeff_d, radial_exp_coeff_der_d
@@ -549,6 +550,7 @@ end if
     call cpu_time(time1)
   end if
   allocate(k2_i_site(1:n_atom_pairs))
+  !write(*,*) "N atom pairs", n_atom_pairs
   allocate(k2_start(1:n_sites))
   
   k2 = 0
@@ -562,9 +564,8 @@ end if
 
   st_cnk=k_max*n_max*n_sites*sizeof(cnk(1,1,1))
 
-  call gpu_malloc_all(cnk_d,st_cnk,gpu_stream)
-  ! call gpu_malloc_double_complex(cnk_d, k_max*n_max*n_sites)
-  
+  call gpu_malloc_all(cnk_d,st_cnk,gpu_stream) ! call gpu_malloc_double_complex(cnk_d, k_max*n_max*n_sites)
+   
   call gpu_malloc_all(k2_start_d,st_n_sites_int,gpu_stream)
   call cpy_htod(c_loc(k2_start), k2_start_d, st_n_sites_int, gpu_stream)
   
@@ -696,6 +697,7 @@ end if
   call gpu_malloc_all(sqrt_dot_p_d, st_n_sites_double,gpu_stream)
   call gpu_malloc_all(skip_soap_component_d, st_skip_component,gpu_stream)
   call cpy_htod(c_loc(skip_soap_component), skip_soap_component_d, st_skip_component,gpu_stream)
+  
   
   call gpu_get_sqrt_dot_p(sqrt_dot_p_d, soap_d, multiplicity_array_d, &
                                     cnk_d, skip_soap_component_d,  &
@@ -858,19 +860,18 @@ end if
   call gpu_free_async(thetas_d,gpu_stream)
   call gpu_free_async(phis_d,gpu_stream)
   call gpu_free_async(rjs_d,gpu_stream)
-  deallocate(new_mask)
   call gpu_free_async(mask_d,gpu_stream)
   call gpu_free_async(atom_sigma_t_d,gpu_stream)
   call gpu_free_async(atom_sigma_t_scaling_d,gpu_stream)
   call gpu_free_async(atom_sigma_r_d,gpu_stream)
   call gpu_free_async(k2_start_d,gpu_stream)
-  call gpu_free_async(n_neigh_d,gpu_stream)
+  !call gpu_free_async(n_neigh_d,gpu_stream)
   call gpu_free_async(species_d,gpu_stream)
   call gpu_free_async(species_multiplicity_d,gpu_stream)
   call gpu_free_async(rcut_hard_d,gpu_stream)
   call gpu_free_async(W_d,gpu_stream)
   call gpu_free_async(S_d,gpu_stream)
-  call gpu_free_async(k2_i_site_d,gpu_stream)
+  !call gpu_free_async(k2_i_site_d,gpu_stream)
   call gpu_free_async(preflm_d,gpu_stream)
   call gpu_free_async(i_beg_d,gpu_stream)
   call gpu_free_async(i_end_d,gpu_stream)
@@ -880,7 +881,7 @@ end if
   call gpu_free_async(central_weight_d,gpu_stream)
   call gpu_free_async(global_scaling_d,gpu_stream)
   call gpu_free_async(cnk_d,gpu_stream)
-
+  
   !call cpu_time(ttt(2))
   ttt(2)=MPI_Wtime()
   time_get_soap=time_get_soap+ttt(2)-ttt(1)
