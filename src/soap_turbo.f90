@@ -128,6 +128,7 @@ module soap_turbo_desc
   type(c_ptr) :: global_scaling_d
   logical(c_bool) :: c_do_derivatives
   integer :: kij
+  integer, allocatable, target  :: k_idx(:)
 !-------------------
 
 
@@ -135,7 +136,7 @@ module soap_turbo_desc
   call gpu_malloc_all(soap_d, st_soap, gpu_stream)
 
   st_soap_cart_der= sizeof(soap_cart_der) !  3*n_soap*n_atom_pairs*sizeof(soap_cart_der(1,1,1))
-  call gpu_malloc_all_blocking(soap_cart_der_d, st_soap_cart_der) !call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream)
+  call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream) !call gpu_malloc_all_blocking(soap_cart_der_d, st_soap_cart_der) !call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream)
 !  stop
 if( basis == "poly3gauss" )then
   bintybint=1000
@@ -375,6 +376,16 @@ end if
   ! write(*,*)
   ! write(*,*) alpha_max
   ! stop
+
+
+  allocate(k_idx(1:n_sites))
+  k_idx(1) = 0
+
+  do i = 2, n_sites
+     k_idx(i) = k_idx(i-1) + n_neigh(i-1)
+  end do
+
+  write(*,*) "Before radial exp coeff"
   do i = 1, n_species
     if( basis == "poly3gauss" )then
       call get_radial_expansion_coefficients_poly3gauss(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
@@ -382,7 +393,7 @@ end if
                                                         amplitude_scaling(i), nf(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
                                                         scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
                                                         radial_exp_coeff(i_beg(i):i_end(i), :), &
-                                                        radial_exp_coeff_der(i_beg(i):i_end(i), :) )
+                                                        radial_exp_coeff_der(i_beg(i):i_end(i), :), k_idx(1:n_sites) )
     else if( basis == "poly3" )then
       call get_radial_expansion_coefficients_poly3(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
                                                    rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &

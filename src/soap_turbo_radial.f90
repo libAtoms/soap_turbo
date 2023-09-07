@@ -380,7 +380,7 @@ module soap_turbo_radial
                                                           rcut_hard_in, atom_sigma_in, atom_sigma_scaling, &
                                                           amplitude_scaling, nf, W, scaling_mode, mask, &
                                                           radial_enhancement, do_derivatives, exp_coeff, &
-                                                          exp_coeff_der)
+                                                          exp_coeff_der, k_idx)
 !   Expansion coefficients using the polynomial basis with smooth filter plus a Gaussian centered at the origin
 !
 !   Apparently, with this basis the W matrix becomes complex for 13 and higher
@@ -410,6 +410,7 @@ module soap_turbo_radial
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
+    integer(c_int), intent(in), target :: k_idx(:)
 
 !   If the user requests derivatives, we need to get the expansion coefficients up to
 !   alpha_max - 1 + 2. The "-1" is there because the Gaussian basis at the origin does not
@@ -465,8 +466,9 @@ module soap_turbo_radial
 !
     k = 0
     do i = 1, n_sites
+       k = k_idx(i)
       do j = 1, n_neigh(i)
-        k = k + 1
+         k = k + 1
 !       IMPORTANT: for this basis, we skip i itself, which is neighbor number 1
         if( j == 1 )then
           cycle
