@@ -395,7 +395,7 @@ module soap_turbo_radial
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
     real*8, intent(in) :: rcut_soft_in,rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
     real*8, intent(in) :: amplitude_scaling
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, ampli_tude
     logical, intent(in) :: mask(:), do_derivatives
     character(*), intent(in) :: scaling_mode
     real(c_double), intent(in) ::  rcut_hard_in
@@ -409,9 +409,11 @@ module soap_turbo_radial
     real(c_double),intent(inout), target :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false.
-    real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
+    real*8 :: denom, der_sjf_rj, der_rjf_rj, ampli_tude_der, pref_f, der_pref_f, sigma_star
     integer(c_int), intent(in), target :: k_idx(:)
-
+    real(c_double),allocatable, target :: amplitude_save(:),  amplitude_der_save(:)
+    
+    allocate(amplitude_save(1:n_sites), amplitude_der_save(1:n_sites))
 !   If the user requests derivatives, we need to get the expansion coefficients up to
 !   alpha_max - 1 + 2. The "-1" is there because the Gaussian basis at the origin does not
 !   participate in the calculation of the derivatives for the polynomial basis functions
@@ -498,36 +500,38 @@ module soap_turbo_radial
 !           WARNING2: These expressions here already assume rcut_hard = 1., so this parameter is missing
 !           from the expressions
             if( amplitude_scaling == 0.d0 )then
-              amplitude = 1.d0 / atom_sigma_scaled
-              amplitude_der = - atom_sigma_scaling / s2 
+              ampli_tude = 1.d0 / atom_sigma_scaled
+              ampli_tude_der = - atom_sigma_scaling / s2 
             else if( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 <= 1.d-10 )then
-              amplitude = 0.d0
-              amplitude_der = 0.d0
+              ampli_tude = 0.d0
+              ampli_tude_der = 0.d0
             else
               if( amplitude_scaling == 1.d0 )then
-                amplitude = 1.d0 / atom_sigma_scaled * ( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 )
-                amplitude_der = 6.d0 / atom_sigma_scaled * (rj**2 - rj) &
-                                - atom_sigma_scaling / atom_sigma_scaled * amplitude
+                ampli_tude = 1.d0 / atom_sigma_scaled * ( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 )
+                ampli_tude_der = 6.d0 / atom_sigma_scaled * (rj**2 - rj) &
+                                - atom_sigma_scaling / atom_sigma_scaled * ampli_tude
               else
-                amplitude = 1.d0 / atom_sigma_scaled * ( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 )**amplitude_scaling
-                amplitude_der = 6.d0*amplitude_scaling / atom_sigma_scaled * (rj**2 - rj) &
+                ampli_tude = 1.d0 / atom_sigma_scaled * ( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 )**amplitude_scaling
+                ampli_tude_der = 6.d0*amplitude_scaling / atom_sigma_scaled * (rj**2 - rj) &
                                 * ( 1.d0 + 2.d0*rj**3 - 3.d0*rj**2 )**(amplitude_scaling - 1.d0) &
-                                - atom_sigma_scaling / atom_sigma_scaled * amplitude
+                                - atom_sigma_scaling / atom_sigma_scaled * ampli_tude
               end if
             end if
           end if
 !         The radial enhancement adds a scaling corresponding to the integral of a Gaussian at the position
 !         of atom j.
           if( radial_enhancement == 1 )then
-            amplitude_der = amplitude * ( 1.d0 + dsqrt(2.d0/pi)*atom_sigma_scaling ) + &
-                            amplitude_der * ( rj + dsqrt(2.d0/pi)*atom_sigma_scaled )
-            amplitude = amplitude * ( rj + dsqrt(2.d0/pi)*atom_sigma_scaled )
+            ampli_tude_der = ampli_tude * ( 1.d0 + dsqrt(2.d0/pi)*atom_sigma_scaling ) + &
+                            ampli_tude_der * ( rj + dsqrt(2.d0/pi)*atom_sigma_scaled )
+            ampli_tude = ampli_tude * ( rj + dsqrt(2.d0/pi)*atom_sigma_scaled )
           else if( radial_enhancement == 2 )then
-            amplitude_der = amplitude*( 2.d0*rj + 2.d0*atom_sigma_scaled*atom_sigma_scaling + &
+            ampli_tude_der = ampli_tude*( 2.d0*rj + 2.d0*atom_sigma_scaled*atom_sigma_scaling + &
                                         dsqrt(8.d0/pi)*atom_sigma_scaled + dsqrt(8.d0/pi)*rj*atom_sigma_scaling ) + &
-                            amplitude_der*( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
-            amplitude = amplitude * ( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
+                            ampli_tude_der*( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
+            ampli_tude = ampli_tude * ( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
           end if
+          amplitude_save(i)=ampli_tude
+          amplitude_der_save(i)=ampli_tude_der
 !         We have the recursion series starting at n = 0, which means alpha = -2
 !         However, we only need to save the expansion coefficients for alpha >= 1
 !         This is I_-1
@@ -666,12 +670,13 @@ module soap_turbo_radial
           end if
 !         Transform from g_alpha to g_n (the orthonormal basis)
           if( do_derivatives )then
-            exp_coeff_der_temp(1:alpha_max) = amplitude * exp_coeff_der_temp(1:alpha_max) + amplitude_der * &
+            exp_coeff_der_temp(1:alpha_max) = amplitude_save(i) * exp_coeff_der_temp(1:alpha_max) + amplitude_der_save(i) * &
                                               (exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max))
             exp_coeff_der(1:alpha_max, k) = matmul( W, exp_coeff_der_temp(1:alpha_max) )
           end if
-          exp_coeff(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max) )
-          
+          exp_coeff(1:alpha_max, k) = amplitude_save(i) * matmul( W, exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max) )
+          !write(*,*) "alpha_max", alpha_max
+          !stop
         end if
         ! do n=1,alpha_max
         !   if(isnan(exp_coeff(n,k)).or.isnan(exp_coeff_temp1(n)).or.isnan(exp_coeff_temp2(n)).or.isnan(pref_f)) then
@@ -728,6 +733,7 @@ module soap_turbo_radial
     end if
 
     deallocate( exp_coeff_temp1, exp_coeff_temp2, exp_coeff_der_temp )
+    deallocate(amplitude_der_save,amplitude_save)
 
   return
   end subroutine

@@ -385,7 +385,7 @@ end if
      k_idx(i) = k_idx(i-1) + n_neigh(i-1)
   end do
 
-  write(*,*) "Before radial exp coeff"
+  !write(*,*) "Before radial exp coeff"
   do i = 1, n_species
     if( basis == "poly3gauss" )then
       call get_radial_expansion_coefficients_poly3gauss(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
@@ -516,7 +516,7 @@ end if
 
   
 
-  call gpu_get_radial_exp_coeff(radial_exp_coeff_d, radial_exp_coeff_der_d, &
+  call gpu_get_radial_exp_coeff_poly3gauss(radial_exp_coeff_d, radial_exp_coeff_der_d, &
                                 i_beg_d, i_end_d, &
                                 global_scaling_d, &
                                 n_max, n_atom_pairs, n_species, &
