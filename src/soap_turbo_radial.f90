@@ -674,7 +674,8 @@ module soap_turbo_radial
                                               (exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max))
             exp_coeff_der(1:alpha_max, k) = matmul( W, exp_coeff_der_temp(1:alpha_max) )
           end if
-          exp_coeff(1:alpha_max, k) = amplitude_save(i) * matmul( W, exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max) )
+          exp_coeff(1:alpha_max, k) = amplitude_save(i) * matmul( W, exp_coeff_temp1(1:alpha_max) &
+          + pref_f * exp_coeff_temp2(1:alpha_max) )
           !write(*,*) "alpha_max", alpha_max
           !stop
         end if
