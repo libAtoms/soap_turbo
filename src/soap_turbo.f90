@@ -129,6 +129,10 @@ module soap_turbo_desc
   logical(c_bool) :: c_do_derivatives
   integer :: kij
   integer, allocatable, target  :: k_idx(:)
+  !real(c_double),allocatable, target :: amplitude_save(:),  amplitude_der_save(:)
+  !type(c_ptr) :: amplitude_save_d,  amplitude_der_save_d 
+  type(c_ptr) ::  all_exp_coeff_temp2_d, all_exp_coeff_temp1_d
+  integer(c_size_t) :: st_size_amplitudes, st_size_exp_coeff_temp
 !-------------------
 
 
@@ -384,7 +388,9 @@ end if
   do i = 2, n_sites
      k_idx(i) = k_idx(i-1) + n_neigh(i-1)
   end do
-
+  
+  !n_atom_pairs=size(exp_coeff,2)
+  !allocate(amplitude_save(1:n_atom_pairs), amplitude_der_save(1:n_atom_pairs))
   !write(*,*) "Before radial exp coeff"
   do i = 1, n_species
     if( basis == "poly3gauss" )then
@@ -393,7 +399,7 @@ end if
                                                         amplitude_scaling(i), nf(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
                                                         scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
                                                         radial_exp_coeff(i_beg(i):i_end(i), :), &
-                                                        radial_exp_coeff_der(i_beg(i):i_end(i), :), k_idx(1:n_sites) )
+                                                        radial_exp_coeff_der(i_beg(i):i_end(i), :), k_idx(1:n_sites))
     else if( basis == "poly3" )then
       call get_radial_expansion_coefficients_poly3(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
                                                    rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
@@ -414,8 +420,35 @@ end if
   ! endif
   ! enddo
   ! enddo
-  ttt(1)=MPI_Wtime()
+  ttt(1)=MPI_Wtime() 
+  allocate(k2_i_site(1:n_atom_pairs))
+  !write(*,*) "N atom pairs", n_atom_pairs
+  allocate(k2_start(1:n_sites))
   
+  k2 = 0
+  do i = 1, n_sites
+   k2_start(i)=k2
+    do j = 1, n_neigh(i)
+      k2 = k2 + 1
+      k2_i_site(k2)=i
+    enddo
+  enddo
+  call gpu_malloc_all(k2_start_d,st_n_sites_int,gpu_stream)
+  call cpy_htod(c_loc(k2_start), k2_start_d, st_n_sites_int, gpu_stream)
+
+
+  call gpu_malloc_all(k2_i_site_d,st_n_atom_pairs_int,gpu_stream)
+  call cpy_htod(c_loc(k2_i_site),k2_i_site_d, st_n_atom_pairs_int, gpu_stream)
+  
+  !st_size_amplitudes=n_sites*
+  !st_size_exp_coeff_temp=size(k_idx,1)*
+  ! write(*,*)
+  ! write(*,*) i_beg
+  ! write(*,*) i_end
+  ! write(*,*)
+  ! call gpu_malloc_all(amplitude_save_d, st_size_amplitudes, gpu_stream)
+  ! call gpu_malloc_all(amplitude_der_save_d, st_size_amplitudes, gpu_stream)
+
   st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
   call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double , gpu_stream) !call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double, gpu_stream)
   call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, &
@@ -521,7 +554,9 @@ end if
                                 global_scaling_d, &
                                 n_max, n_atom_pairs, n_species, &
                                 c_do_derivatives, bintybint, &
-                                rcut_hard_d, gpu_stream)
+                                rcut_hard_d, &
+                                k2_i_site_d, k2_start_d, &
+                                gpu_stream)
 ! For the angular expansion the masking works differently, since we do not have a species-augmented basis as in the
 ! radial expansion part.
   call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_t, atom_sigma_t_scaling, &
@@ -560,25 +595,12 @@ end if
   if( do_timing )then
     call cpu_time(time1)
   end if
-  allocate(k2_i_site(1:n_atom_pairs))
-  !write(*,*) "N atom pairs", n_atom_pairs
-  allocate(k2_start(1:n_sites))
-  
-  k2 = 0
-  do i = 1, n_sites
-   k2_start(i)=k2
-    do j = 1, n_neigh(i)
-      k2 = k2 + 1
-      k2_i_site(k2)=i
-    enddo
-  enddo
+ 
 
   st_cnk=k_max*n_max*n_sites*sizeof(cnk(1,1,1))
 
   call gpu_malloc_all(cnk_d,st_cnk,gpu_stream) ! call gpu_malloc_double_complex(cnk_d, k_max*n_max*n_sites)
    
-  call gpu_malloc_all(k2_start_d,st_n_sites_int,gpu_stream)
-  call cpy_htod(c_loc(k2_start), k2_start_d, st_n_sites_int, gpu_stream)
   
 
   call gpu_malloc_all(n_neigh_d,st_n_sites_int,gpu_stream)
@@ -700,8 +722,6 @@ end if
   n_multiplicity=size(multiplicity_array,1)
   st_n_multiplicity_double=n_multiplicity*sizeof(multiplicity_array(1))
   
-  call gpu_malloc_all(k2_i_site_d,st_n_atom_pairs_int,gpu_stream)
-  call cpy_htod(c_loc(k2_i_site),k2_i_site_d, st_n_atom_pairs_int, gpu_stream)
   call gpu_malloc_all(multiplicity_array_d, st_n_multiplicity_double,gpu_stream)
   call cpy_htod(c_loc( multiplicity_array), multiplicity_array_d, st_n_multiplicity_double, gpu_stream)
   

@@ -411,9 +411,10 @@ module soap_turbo_radial
     logical, save :: print_basis = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, ampli_tude_der, pref_f, der_pref_f, sigma_star
     integer(c_int), intent(in), target :: k_idx(:)
-    real(c_double),allocatable, target :: amplitude_save(:),  amplitude_der_save(:)
+    !real(c_double),allocatable, target :: amplitude_save(:),  amplitude_der_save(:)
+    !integer :: n_atom_pairs
     
-    allocate(amplitude_save(1:n_sites), amplitude_der_save(1:n_sites))
+    
 !   If the user requests derivatives, we need to get the expansion coefficients up to
 !   alpha_max - 1 + 2. The "-1" is there because the Gaussian basis at the origin does not
 !   participate in the calculation of the derivatives for the polynomial basis functions
@@ -425,7 +426,7 @@ module soap_turbo_radial
     allocate( exp_coeff_temp1(1:alpha_max_der) )
     allocate( exp_coeff_temp2(1:alpha_max_der) )
     allocate( exp_coeff_der_temp(1:alpha_max) )
-
+    
 !   This is for debugging. It prints the basis set to plot it with Gnuplot (gfortran only)
 !    if( .false. .and. print_basis )then
     if( print_basis )then
@@ -530,8 +531,8 @@ module soap_turbo_radial
                             ampli_tude_der*( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
             ampli_tude = ampli_tude * ( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
           end if
-          amplitude_save(i)=ampli_tude
-          amplitude_der_save(i)=ampli_tude_der
+          !amplitude_save(k)=ampli_tude
+          !amplitude_der_save(k)=ampli_tude_der
 !         We have the recursion series starting at n = 0, which means alpha = -2
 !         However, we only need to save the expansion coefficients for alpha >= 1
 !         This is I_-1
@@ -670,11 +671,11 @@ module soap_turbo_radial
           end if
 !         Transform from g_alpha to g_n (the orthonormal basis)
           if( do_derivatives )then
-            exp_coeff_der_temp(1:alpha_max) = amplitude_save(i) * exp_coeff_der_temp(1:alpha_max) + amplitude_der_save(i) * &
+            exp_coeff_der_temp(1:alpha_max) = ampli_tude * exp_coeff_der_temp(1:alpha_max) + ampli_tude_der * &
                                               (exp_coeff_temp1(1:alpha_max) + pref_f * exp_coeff_temp2(1:alpha_max))
             exp_coeff_der(1:alpha_max, k) = matmul( W, exp_coeff_der_temp(1:alpha_max) )
           end if
-          exp_coeff(1:alpha_max, k) = amplitude_save(i) * matmul( W, exp_coeff_temp1(1:alpha_max) &
+          exp_coeff(1:alpha_max, k) = ampli_tude * matmul( W, exp_coeff_temp1(1:alpha_max) &
           + pref_f * exp_coeff_temp2(1:alpha_max) )
           !write(*,*) "alpha_max", alpha_max
           !stop
@@ -734,7 +735,7 @@ module soap_turbo_radial
     end if
 
     deallocate( exp_coeff_temp1, exp_coeff_temp2, exp_coeff_der_temp )
-    deallocate(amplitude_der_save,amplitude_save)
+    !deallocate(amplitude_der_save,amplitude_save)
 
   return
   end subroutine
