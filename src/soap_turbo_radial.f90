@@ -410,7 +410,7 @@ module soap_turbo_radial
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
     real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling
+    real*8, intent(in) :: amplitude_scaling, connectivity_weights(:)
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives
     character(*), intent(in) :: scaling_mode

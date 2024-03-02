@@ -84,7 +84,7 @@ module soap_turbo_desc
   integer, allocatable :: i_beg(:), i_end(:)
   integer, save :: n_max_prev, l_max_prev
   integer :: k_max, n_max
-  integer :: i, counter, j, k, n_soap, k2, k3, n, l, m, np, counter2, n_soap_uncompressed
+  integer :: i, counter, j, k, n_soap, k2, k3, n, l, m, np, counter2, n_soap_uncompressed, i2
   logical, allocatable :: do_central(:), skip_soap_component(:,:,:), skip_soap_component_flattened(:)
   logical, allocatable, save :: skip_soap_component_flattened_prev(:)
   logical, save :: recompute_basis = .true., recompute_multiplicity_array = .true.
@@ -300,7 +300,7 @@ module soap_turbo_desc
           else
             bonding_cutoff_hard(j) = bonding_hard(i2)
           end if
-          if( bonding_soft(i2) < 0.d0 .and bonding_hard(i2) < 0.d0 )then
+          if( bonding_soft(i2) < 0.d0 .and. bonding_hard(i2) < 0.d0 )then
             bonding_cutoff_soft(j) = rcut_hard(i2)
           else if( bonding_soft(i2) < 0.d0 .or. bonding_soft(i2) >= bonding_hard(i2) )then
             bonding_cutoff_soft(j) = bonding_cutoff_hard(j)
