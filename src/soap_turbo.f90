@@ -2,7 +2,7 @@
 ! HND X
 ! HND X   soap_turbo
 ! HND X
-! HND X   soap_turbo is copyright (c) 2019-2023, Miguel A. Caro
+! HND X   soap_turbo is copyright (c) 2019-2024, Miguel A. Caro
 ! HND X
 ! HND X   soap_turbo is published and distributed under the
 ! HND X      Academic Software License v1.0 (ASL)
@@ -27,6 +27,7 @@ module soap_turbo_desc
 
   use soap_turbo_radial
   use soap_turbo_angular
+  use connectivity_module
 
   contains
 
@@ -36,7 +37,7 @@ module soap_turbo_desc
                       atom_sigma_r_scaling, atom_sigma_t, atom_sigma_t_scaling, &
                       amplitude_scaling, radial_enhancement, central_weight, basis, scaling_mode, do_timing, &
                       do_derivatives, compress_soap, compress_P_nonzero, compress_P_i, compress_P_j, &
-                      compress_P_el, soap, soap_cart_der)
+                      compress_P_el, bonding_hard, bonding_soft, soap, soap_cart_der)
 
   implicit none
 
@@ -47,6 +48,7 @@ module soap_turbo_desc
   real*8, intent(in) :: central_weight(:), atom_sigma_r(:), global_scaling(:)
   real*8, intent(in) :: nf(:), rcut_hard(:), rcut_soft(:)
   real*8, intent(in) :: compress_P_el(:)
+  real*8, intent(in) :: bonding_hard(:), bonding_soft(:)
 
   integer, intent(in) :: n_species, radial_enhancement, species(:,:), species_multiplicity(:)
   integer, intent(in) :: n_sites, n_neigh(:), l_max, n_atom_pairs, alpha_max(:), compress_P_nonzero, &
@@ -86,6 +88,10 @@ module soap_turbo_desc
   logical, allocatable :: do_central(:), skip_soap_component(:,:,:), skip_soap_component_flattened(:)
   logical, allocatable, save :: skip_soap_component_flattened_prev(:)
   logical, save :: recompute_basis = .true., recompute_multiplicity_array = .true.
+
+! Connectivity
+  real*8, allocatable :: xyz(:,:), bonding_cutoff_hard(:), bonding_cutoff_soft(:), connectivity_weights(:), &
+                         this_connectivity_weights(:)
 !-------------------
 
   if( do_timing )then
@@ -273,22 +279,67 @@ module soap_turbo_desc
   end if
 
 
+! Build the connectivity graph here
+!
+! Note: mask(j,i) is a logical that says whether atom j in the flattened
+! list is of species i (.true.) or is not (.false.)
+  allocate( connectivity_weights(1:n_atom_pairs) )
+  connectivity_weights = 1.d0
+  k = 0
+  do i = 1, n_sites
+!   Assign the cutoffs according to the species
+    allocate( bonding_cutoff_hard(1:n_neigh(i)) )
+    allocate( bonding_cutoff_soft(1:n_neigh(i)) )
+    allocate( xyz(1:3, 1:n_neigh(i)) )
+    do j = 1, n_neigh(i)
+      k = k + 1
+      do i2 = 1, n_species
+        if( mask(k, i2) )then
+          if( bonding_hard(i2) < 0.d0 )then
+            bonding_cutoff_hard(j) = rcut_hard(i2)
+          else
+            bonding_cutoff_hard(j) = bonding_hard(i2)
+          end if
+          if( bonding_soft(i2) < 0.d0 .and bonding_hard(i2) < 0.d0 )then
+            bonding_cutoff_soft(j) = rcut_hard(i2)
+          else if( bonding_soft(i2) < 0.d0 .or. bonding_soft(i2) >= bonding_hard(i2) )then
+            bonding_cutoff_soft(j) = bonding_cutoff_hard(j)
+          else
+            bonding_cutoff_soft(j) = bonding_soft(i2)
+          end if
+          exit
+        end if
+      end do
+!     These could be passed from the main program to save time
+      xyz(1, j) = rjs(k)*dsin(thetas(k))*dcos(phis(k))
+      xyz(2, j) = rjs(k)*dsin(thetas(k))*dsin(phis(k))
+      xyz(3, j) = rjs(k)*dcos(thetas(k))
+    end do
+!   Build the connectivity graph for each atom-centered environment
+    allocate( this_connectivity_weights(1:n_neigh(i)) )
+    call cluster_atoms(xyz, bonding_cutoff_hard, bonding_cutoff_soft, this_connectivity_weights)
+    connectivity_weights(k-n_neigh(i)+1:k) = this_connectivity_weights(:)
+    deallocate( xyz, bonding_cutoff_hard, bonding_cutoff_soft, this_connectivity_weights )
+  end do
+
+
   do i = 1, n_species
     if( basis == "poly3gauss" )then
       call get_radial_expansion_coefficients_poly3gauss(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
                                                         rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
                                                         amplitude_scaling(i), nf(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
                                                         scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
+                                                        connectivity_weights, &
                                                         radial_exp_coeff(i_beg(i):i_end(i), :), &
                                                         radial_exp_coeff_der(i_beg(i):i_end(i), :) )
       radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
       radial_exp_coeff_der(i_beg(i):i_end(i), :) = radial_exp_coeff_der(i_beg(i):i_end(i), :) * global_scaling(i)
-    else if( basis == "poly3" )then
+    else if( basis == "poly3" .or. basis == "poly3tab" )then
       call get_radial_expansion_coefficients_poly3(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
                                                    rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
                                                    amplitude_scaling(i), nf(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
                                                    scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
-                                                   do_central(i), central_weight(i), &
+                                                   do_central(i), central_weight(i), connectivity_weights, &
                                                    radial_exp_coeff(i_beg(i):i_end(i), :), &
                                                    radial_exp_coeff_der(i_beg(i):i_end(i), :) )
       radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
@@ -296,6 +347,7 @@ module soap_turbo_desc
     end if
   end do
 
+  deallocate( connectivity_weights )
 
 
   if( do_timing )then

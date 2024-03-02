@@ -2,7 +2,7 @@
 ! HND X
 ! HND X   soap_turbo
 ! HND X
-! HND X   soap_turbo is copyright (c) 2019-2023, Miguel A. Caro
+! HND X   soap_turbo is copyright (c) 2019-2024, Miguel A. Caro
 ! HND X
 ! HND X   soap_turbo is published and distributed under the
 ! HND X      Academic Software License v1.0 (ASL)
@@ -70,14 +70,14 @@ module soap_turbo_radial
                                                      rcut_hard_in, atom_sigma_in, atom_sigma_scaling, &
                                                      amplitude_scaling, nf, W, scaling_mode, mask, &
                                                      radial_enhancement, do_derivatives, do_central, &
-                                                     central_weight, exp_coeff, exp_coeff_der)
+                                                     central_weight, connectivity_weights, exp_coeff, exp_coeff_der)
 !   Expansion coefficients using the polynomial basis with smooth filter
 
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
     real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling, central_weight
+    real*8, intent(in) :: amplitude_scaling, central_weight, connectivity_weights(:)
     real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
@@ -106,7 +106,7 @@ module soap_turbo_radial
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
       stop
-    else if( alpha_max > 7 .and. print_message )then
+    else if( alpha_max > 7 .and. print_message .and. .false. )then
       print_message = .false.
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the poly3 <---- WARNING"
@@ -228,7 +228,9 @@ module soap_turbo_radial
                                         dsqrt(8.d0/pi)*atom_sigma_scaled + dsqrt(8.d0/pi)*rj*atom_sigma_scaling ) + &
                             amplitude_der*( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
             amplitude = amplitude * ( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
-          end if       
+          end if
+!         Connectivity corrections (THE DERIVATIVES ARE STILL MISSING!!!)
+          amplitude = amplitude * connectivity_weights(k)       
 !         We have the recursion series starting at n = 0, which means alpha = -2
 !         However, we only need to save the expansion coefficients for alpha >= 1
 !         This is I_-1
@@ -397,8 +399,8 @@ module soap_turbo_radial
   subroutine get_radial_expansion_coefficients_poly3gauss(n_sites, n_neigh, rjs_in, alpha_max, rcut_soft_in, &
                                                           rcut_hard_in, atom_sigma_in, atom_sigma_scaling, &
                                                           amplitude_scaling, nf, W, scaling_mode, mask, &
-                                                          radial_enhancement, do_derivatives, exp_coeff, &
-                                                          exp_coeff_der)
+                                                          radial_enhancement, do_derivatives, connectivity_weights, &
+                                                          exp_coeff, exp_coeff_der)
 !   Expansion coefficients using the polynomial basis with smooth filter plus a Gaussian centered at the origin
 !
 !   TRY OUT: Check for very small numbers (that could lead to negative numbers) and then truncate them
@@ -437,7 +439,7 @@ module soap_turbo_radial
       write(*,*) "before similar instabilities develop."
       write(*,*) "-------------------------------------------------------------------------------"
       stop
-    else if( alpha_max > 8 .and. print_message )then
+    else if( alpha_max > 8 .and. print_message .and. .false. )then
       write(*,*) "-------------------------------------------------------------------------------"
       write(*,*) "WARNING: Due to numerical instabilities in the basis construction for the       <---- WARNING"
       write(*,*) "poly3gauss basis, it is strongly recommended not to exceed alpha_max = 8. For"
@@ -557,6 +559,8 @@ module soap_turbo_radial
                             amplitude_der*( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
             amplitude = amplitude * ( rj**2 + s2 + dsqrt(8.d0/pi)*atom_sigma_scaled*rj )
           end if
+!         Connectivity corrections (THE DERIVATIVES ARE STILL MISSING!!!)
+          amplitude = amplitude * connectivity_weights(k)       
 !         We have the recursion series starting at n = 0, which means alpha = -2
 !         However, we only need to save the expansion coefficients for alpha >= 1
 !         This is I_-1
