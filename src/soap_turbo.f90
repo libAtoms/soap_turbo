@@ -324,15 +324,17 @@ module soap_turbo_desc
 
 
 
-!! For debugging (only gfortran)
-!  if( .false. )then
-!    write(*,*) "# Gaussian centered at ", rjs(4)
-!    write(*,"(A)",advance="no") "rho(x) = "
-!    do i = 1, alpha_max
-!      write(*,"(A,I0,A,E16.8,A)",advance="no") "p", i, "(x) *", radial_exp_coeff(i,4), "+"
-!    end do
-!    write(*,*) "0."
-!  end if
+
+! For debugging (only gfortran)
+  if( .false. )then
+    write(*,*) "# Gaussian centered at ", rjs(4)
+    write(*,"(A)",advance="no") "rho(x) = "
+    do i = 1, alpha_max(1)
+      write(*,"(A,I0,A,E16.8,A)",advance="no") "p", i, "(x) *", radial_exp_coeff(i,4), "+"
+    end do
+    write(*,*) "0."
+  end if
+
 
 
 
