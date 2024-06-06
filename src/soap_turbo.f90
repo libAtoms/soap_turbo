@@ -189,7 +189,7 @@ module soap_turbo_desc
         call get_orthonormalization_matrix_poly3(alpha_max(i), S_temp, W_temp)
       else if( basis == "poly3tab" )then
         call get_orthonormalization_matrix_poly3_tabulated(alpha_max(i), S_temp, W_temp)
-      else if( basis == "operator" )then
+      else if( basis == "poly3operator" )then
         call get_orthonormalization_matrix_poly3_tabulated(alpha_max(i), S_temp, W_temp)
       end if
       S(i_beg(i):i_end(i), i_beg(i):i_end(i)) = S_temp
@@ -296,12 +296,12 @@ module soap_turbo_desc
                                                    radial_exp_coeff_der(i_beg(i):i_end(i), :) )
       radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
       radial_exp_coeff_der(i_beg(i):i_end(i), :) = radial_exp_coeff_der(i_beg(i):i_end(i), :) * global_scaling(i)
-    else if( basis == "operator" )then
-      call get_radial_exp_coeff_operator_poly3(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
-                                                        rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
-                                                        amplitude_scaling(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
-                                                        scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
-                                                        .true.,  central_weight(i), radial_exp_coeff(i_beg(i):i_end(i), :))
+    else if( basis == "poly3operator" )then
+      call get_radial_expansion_coefficients_poly3operator(n_sites, n_neigh, rjs, alpha_max(i), rcut_soft(i), &
+                                                           rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
+                                                           amplitude_scaling(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
+                                                           scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
+                                                           .true.,  central_weight(i), radial_exp_coeff(i_beg(i):i_end(i), :))
       radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
     end if
   end do

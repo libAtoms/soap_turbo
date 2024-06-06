@@ -57,11 +57,12 @@ module soap_turbo_radial_op
 ! polynomial basis set and a polynomial piecewise representation for 
 ! the atomic density
 !
-  subroutine get_radial_exp_coeff_operator_poly3(n_sites, n_neigh, rjs_in, alpha_max, rcut_soft_in, &
-                                                 rcut_hard_in, atom_sigma_in, atom_sigma_scaling, &
-                                                 amplitude_scaling, W, scaling_mode, mask, &
-                                                 radial_enhancement, do_derivatives, do_central, &
-                                                 central_weight, exp_coeff)
+  subroutine get_radial_expansion_coefficients_poly3operator(n_sites, n_neigh, rjs_in, alpha_max, &
+                                                             rcut_soft_in, rcut_hard_in, atom_sigma_in, &
+                                                             atom_sigma_scaling, amplitude_scaling, W, &
+                                                             scaling_mode, mask, radial_enhancement, &
+                                                             do_derivatives, do_central, central_weight, &
+                                                             exp_coeff)
 
     implicit none
 
