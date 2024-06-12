@@ -301,8 +301,10 @@ module soap_turbo_desc
                                                            rcut_hard(i), atom_sigma_r(i), atom_sigma_r_scaling(i), &
                                                            amplitude_scaling(i), W(i_beg(i):i_end(i),i_beg(i):i_end(i)), &
                                                            scaling_mode, mask(:,i), radial_enhancement, do_derivatives, &
-                                                           .true.,  central_weight(i), radial_exp_coeff(i_beg(i):i_end(i), :))
+                                                           .true.,  central_weight(i), radial_exp_coeff(i_beg(i):i_end(i), :), &
+                                                           radial_exp_coeff_der(i_beg(i):i_end(i), :))
       radial_exp_coeff(i_beg(i):i_end(i), :) = radial_exp_coeff(i_beg(i):i_end(i), :) * global_scaling(i)
+      radial_exp_coeff_der(i_beg(i):i_end(i), :) = radial_exp_coeff_der(i_beg(i):i_end(i), :) * global_scaling(i)
     end if
   end do
 

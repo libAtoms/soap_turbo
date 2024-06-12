@@ -62,7 +62,7 @@ module soap_turbo_radial_op
                                                              atom_sigma_scaling, amplitude_scaling, W, &
                                                              scaling_mode, mask, radial_enhancement, &
                                                              do_derivatives, do_central, central_weight, &
-                                                             exp_coeff)
+                                                             exp_coeff, exp_coeff_der)
 
     implicit none
 
@@ -74,24 +74,37 @@ module soap_turbo_radial_op
     character(*), intent(in) :: scaling_mode
 !
     integer :: i, j, k
-    real*8 :: pi, rj, s2, atom_width
+    real*8 :: pi, rj, s2, atom_width, atom_width_scaling, filter_width
     real*8 :: lim_soft(1:3), lim_buffer(1:3), B(1:7)
     real*8 :: M_left(1:7, 1:2), M_right(1:7, 1:2)
     real*8, allocatable :: A(:,:), I0(:,:), I_left(:), I_right(:)
     real*8 :: W(:,:)
-!   Results will be stored in exp_coeff, which is an array of dimension (alpha_max, n_atom_pairs)
-    real*8 :: exp_coeff(:,:)
-    real*8, allocatable :: exp_coeff_soft(:), exp_coeff_buffer(:)
-    logical, save :: print_basis = .false.
+!   derivatives
     real*8 :: amplitude_der
+    real*8 :: poly_left(1:4), poly_right(1:4), poly_filter(1:4), B_der(1:7)
+    real*8 :: M_left_der(1:7, 1:2), M_right_der(1:7, 1:2)
+    real*8, allocatable :: I_left_der(:), I_right_der(:), upper_limit_der(:), lower_limit_der(:)
+!   Results will be stored in exp_coeff, which is an array of dimension (alpha_max, n_atom_pairs)
+    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real*8, allocatable :: exp_coeff_soft(:), exp_coeff_buffer(:)
+    real*8, allocatable :: exp_coeff_soft_der(:), exp_coeff_buffer_der(:) 
+    logical, save :: print_basis = .false.
 
-!   NOTE: the derivatives ARE MISSING !!!!!!!!
+
     allocate( exp_coeff_soft(1:alpha_max) )
     allocate( exp_coeff_buffer(1:alpha_max) )
     allocate( A(1:alpha_max, 1:7) )
     allocate( I0(1:alpha_max + 4, 1:3) )
     allocate( I_left(1:alpha_max) )
     allocate( I_right(1:alpha_max) )
+
+    allocate( exp_coeff_soft_der(1:alpha_max) )
+    allocate( exp_coeff_buffer_der(1:alpha_max) )
+    allocate( I_left_der(1:alpha_max) )
+    allocate( I_right_der(1:alpha_max) )
+    allocate( lower_limit_der(1:alpha_max) )
+    allocate( upper_limit_der(1:alpha_max) )
+
 
 !   This is for debugging. It prints the basis set to plot it with Gnuplot (gfortran only)
     if( print_basis )then
@@ -113,8 +126,11 @@ module soap_turbo_radial_op
     atom_sigma = atom_sigma_in/rcut_hard_in
 !   *********************************************
     pi = dacos(-1.d0)
+    filter_width = 2.d0*sqrt(2.d0*log(2.d0))*(rcut_hard - rcut_soft)
     exp_coeff = 0.d0
-
+    if( do_derivatives )then
+      exp_coeff_der = 0.d0
+    end if
 
     call get_constant_poly_coeff(alpha_max, rcut_hard, A)
 
@@ -133,6 +149,7 @@ module soap_turbo_radial_op
           atom_sigma_scaled = atom_sigma + atom_sigma_scaling*rj
           s2 = atom_sigma_scaled**2
           atom_width = 2.d0*sqrt(2.d0*log(2.d0))*atom_sigma_scaled
+          atom_width_scaling = 2.d0*sqrt(2.d0*log(2.d0))*atom_sigma_scaling
 !   ~~~~~~~~~~~~~~~ Amplitude ~~~~~~~~~~~~~~~~~~~~~~~
           if( scaling_mode == "polynomial" )then
 !           WARNING: the 1/atom_sigma_angular^2 term is missing from these amplitudes and needs to
@@ -179,12 +196,16 @@ module soap_turbo_radial_op
 !   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           exp_coeff_soft = 0.d0
           exp_coeff_buffer = 0.d0
+          exp_coeff_soft_der = 0.d0
+          exp_coeff_buffer_der = 0.d0
+          lower_limit_der = 0.d0
+          upper_limit_der = 0.d0
 !         contribution inside rcut_soft from left and right part of the piecewise polynomial
           lim_soft = 0.d0
           if ( rj - atom_width < rcut_soft )then
 !           integration limits inside r_soft
-            lim_soft(1) = max( 0.d0, rj - atom_width )         ! lower limit left
-            lim_soft(2) = min( max(0.d0, rj), rcut_soft )             ! upper limit left / lower limit right
+            lim_soft(1) = max( 0.d0, rj - atom_width )      ! lower limit left
+            lim_soft(2) = min( max(0.d0, rj), rcut_soft )   ! upper limit left / lower limit right
             lim_soft(3) = min( rcut_soft, rj + atom_width ) ! upper limit right
 !            write(*,'(A)') '- Inner zone:'
 !            print *, lim_soft
@@ -199,6 +220,31 @@ module soap_turbo_radial_op
             I_right = matmul( A(1:alpha_max, 1:4), M_right(1:4, 2) ) * I0(5:alpha_max + 4, 3) - &
                       matmul( A(1:alpha_max, 1:4), M_right(1:4, 1) ) * I0(5:alpha_max + 4, 2)
             exp_coeff_soft = I_left + I_right
+            if( do_derivatives )then
+!             contribution to derivatives --> (3) in notes
+              M_left_der(1:4, 1) = I0(1:4, 1) * [-1.d0, -1.d0, -2.d0, -6.d0] * &
+                                   g_aux_der( lim_soft(1), rj, atom_width, atom_width_scaling, "left" )
+              M_left_der(1:4, 2) = I0(1:4, 2) * [-1.d0, -1.d0, -2.d0, -6.d0] * &
+                                   g_aux_der( lim_soft(2), rj, atom_width, atom_width_scaling, "left" )
+              I_left_der = matmul( A(1:alpha_max, 1:4), M_left_der(1:4, 2) ) * I0(5:alpha_max + 4, 2) - &
+                           matmul( A(1:alpha_max, 1:4), M_left_der(1:4, 1) ) * I0(5:alpha_max + 4, 1)
+              M_right_der(1:4, 1) = I0(1:4, 2) * [-1.d0, -1.d0, -2.d0, -6.d0] * &
+                                    g_aux_der( lim_soft(2), rj, atom_width, atom_width_scaling, "right" )
+              M_right_der(1:4, 2) = I0(1:4, 3) * [-1.d0, -1.d0, -2.d0, -6.d0] * &
+                                    g_aux_der( lim_soft(3), rj, atom_width, atom_width_scaling, "right" )
+              I_right_der = matmul( A(1:alpha_max, 1:4), M_right_der(1:4, 2) ) * I0(5:alpha_max + 4, 3) - &
+                            matmul( A(1:alpha_max, 1:4), M_right_der(1:4, 1) ) * I0(5:alpha_max + 4, 2)
+              exp_coeff_soft_der = I_left_der + I_right_der
+!             add derivatives of the integral limits if necessary --> (1), (2) in notes
+              if ( lim_soft(1) == rj - atom_width )then
+                poly_left = g_aux(lim_soft(1), rj, atom_width, 'left')
+                lower_limit_der = poly_left(1) * (1.d0 - atom_width_scaling) * I0(4:alpha_max + 4, 1)
+              end if
+              if ( lim_soft(3) == rj + atom_width )then
+                poly_right = g_aux(lim_soft(3), rj, atom_width, 'right')
+                upper_limit_der = poly_right(1) * (1.d0 + atom_width_scaling) * I0(4:alpha_max + 4, 3)
+              end if 
+            end if
           end if
 !         contribution in the buffer zone from left and right part of the piecewise polynomial
           lim_buffer = 0.d0
@@ -210,20 +256,54 @@ module soap_turbo_radial_op
 !            write(*,'(A)') '* Buffer zone:'
 !           contribution to the expansion coeff.
             I0 = transpose( M_radial_poly(lim_buffer, max(7, alpha_max + 4), rcut_hard) )
-            call get_constant_poly_filter_coeff(rj, atom_width, rcut_soft, rcut_hard, 'left', B)
+            call get_constant_poly_filter_coeff(rj, atom_width, rcut_soft, filter_width, 'left', B)
             M_left(1:7, 1) = matmul( -B(1:7), M_radial_monomial(lim_buffer(1), 6) ) * I0(1:7, 1)
             M_left(1:7, 2) = matmul( -B(1:7), M_radial_monomial(lim_buffer(2), 6) ) * I0(1:7, 2)
             I_left = matmul( A(1:alpha_max, 1:7), M_left(1:7, 2) ) * I0(5:alpha_max + 4, 2) - &
                      matmul( A(1:alpha_max, 1:7), M_left(1:7, 1) ) * I0(5:alpha_max + 4, 1)
-            call get_constant_poly_filter_coeff(rj, atom_width, rcut_soft, rcut_hard, 'right', B)
+            call get_constant_poly_filter_coeff(rj, atom_width, rcut_soft, filter_width, 'right', B)
             M_right(1:7, 1) = matmul( -B(1:7), M_radial_monomial(lim_buffer(2), 6) ) * I0(1:7, 2)
             M_right(1:7, 2) = matmul( -B(1:7), M_radial_monomial(lim_buffer(3), 6) ) * I0(1:7, 3)
             I_right = matmul( A(1:alpha_max, 1:7), M_right(1:7, 2) ) * I0(5:alpha_max + 4, 3) - &
                       matmul( A(1:alpha_max, 1:7), M_right(1:7, 1) ) * I0(5:alpha_max + 4, 2)
             exp_coeff_buffer = I_left + I_right
+!           contribution to derivatives --> (3) in notes
+            if( do_derivatives )then
+!             contribution to derivatives --> (3) in notes
+              call get_constant_poly_filter_coeff_der(rj, atom_width, atom_width_scaling, rcut_soft, filter_width, &
+                                                      'left', B_der)
+              M_left_der(1:7, 1) = matmul( -B_der(1:7), M_radial_monomial(lim_buffer(1), 6) ) * I0(1:7, 1)
+              M_left_der(1:7, 2) = matmul( -B_der(1:7), M_radial_monomial(lim_buffer(2), 6) ) * I0(1:7, 2)
+              I_left_der = matmul( A(1:alpha_max, 1:7), M_left_der(1:7, 2) ) * I0(5:alpha_max + 4, 2) - &
+                           matmul( A(1:alpha_max, 1:7), M_left_der(1:7, 1) ) * I0(5:alpha_max + 4, 1)
+              call get_constant_poly_filter_coeff_der(rj, atom_width, atom_width_scaling, rcut_soft, filter_width, &
+                                                      'right', B_der)
+              M_right_der(1:7, 1) = matmul( -B_der(1:7), M_radial_monomial(lim_buffer(2), 6) ) * I0(1:7, 2)
+              M_right_der(1:7, 2) = matmul( -B_der(1:7), M_radial_monomial(lim_buffer(3), 6) ) * I0(1:7, 3)
+              I_right_der = matmul( A(1:alpha_max, 1:7), M_right_der(1:7, 2) ) * I0(5:alpha_max + 4, 3) - &
+                            matmul( A(1:alpha_max, 1:7), M_right_der(1:7, 1) ) * I0(5:alpha_max + 4, 2)
+              exp_coeff_buffer_der = I_left_der + I_right_der
+!             add derivatives of the integral limits if necessary --> (1), (2) in notes
+              if ( lim_buffer(1) == rj - atom_width )then
+                poly_left = g_aux(lim_buffer(1), rj, atom_width, 'left')
+                poly_filter = g_aux(lim_buffer(1), rcut_soft, filter_width, 'right')
+                lower_limit_der = poly_left(1) * (1.d0 - atom_width_scaling) * poly_filter(1) * I0(4:alpha_max + 4, 1)
+              end if
+              if ( lim_buffer(3) == rj + atom_width )then
+                poly_right = g_aux(lim_buffer(3), rj, atom_width, 'right')
+                poly_filter = g_aux(lim_buffer(3), rcut_soft, filter_width, 'right')
+                upper_limit_der = poly_right(1) * (1.d0 + atom_width_scaling) * poly_filter(1) * I0(4:alpha_max + 4, 3)
+              end if 
+            end if
           end if
 !         Transform from g_alpha to g_n (the orthonormal basis)
           exp_coeff(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_soft(1:alpha_max) + exp_coeff_buffer(1:alpha_max) )
+          if( do_derivatives )then
+            exp_coeff_der(1:alpha_max, k) = exp_coeff_soft_der(1:alpha_max) + upper_limit_der + &
+                                            exp_coeff_buffer_der(1:alpha_max) - lower_limit_der
+            exp_coeff_der(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_der(1:alpha_max, k) ) + &
+                                            amplitude_der * exp_coeff(1:alpha_max, k)
+          end if
         end if
       end do
     end do
@@ -246,7 +326,8 @@ module soap_turbo_radial_op
       close(10)
     end if
 
-    deallocate( exp_coeff_soft, exp_coeff_buffer, A, I0, I_left, I_right)
+    deallocate( exp_coeff_soft, exp_coeff_buffer, A, I0, I_left, I_right )
+    deallocate( exp_coeff_soft_der, exp_coeff_buffer_der )
 
   return
   end subroutine
@@ -256,7 +337,7 @@ module soap_turbo_radial_op
 !**************************************************************************
 !
 ! Auxiliary function that computes a piecewise polynomial function and
-! its derivatives.
+! its derivatives with respect to r
 !
   function g_aux(r, r0, width, piece) result(poly)
     implicit none
@@ -277,6 +358,40 @@ module soap_turbo_radial_op
   return
   end function
 !**************************************************************************
+
+!**************************************************************************
+!
+! Auxiliary function derivatives of g_aux() with respect to r0, where
+!                width = width0 + width_scaling * r0
+! and
+!   width_scaling = 2.d0*sqrt(2.d0*log(2.d0)) * atom_sigma_scaling
+!
+  function g_aux_der(r, r0, width, width_scaling, piece) result(poly)
+    implicit none
+ 
+    real*8, intent(in) :: r, r0, width, width_scaling
+    character(*), intent(in) :: piece
+    real*8 :: x
+    real*8 :: poly(1:4)
+
+    x = (r - r0)/width
+
+    if ( piece == "left" )then
+      poly = [ 6.d0*(x + (width_scaling + 1.d0)*x**2 + width_scaling*x**3)/width,              &
+               6.d0*(1.d0 + 2.d0*(width_scaling + 1.d0)*x + 3.d0*width_scaling*x**2)/width**2, &
+               6.d0*(width_scaling + 1 + 3.d0*width_scaling*x)/width**3,                       &
+              -6.d0*width_scaling/width**4 ]
+    else if ( piece == "right" )then
+      poly = [ 6.d0*(x + (width_scaling - 1.d0)*x**2 - width_scaling*x**3)/width,              &
+               6.d0*(1.d0 + 2.d0*(width_scaling - 1.d0)*x - 3.d0*width_scaling*x**2)/width**2, &
+               6.d0*(width_scaling - 1 - 3.d0*width_scaling*x)/width**3,                       &
+               6.d0*width_scaling/width**4 ]
+    end if
+
+  return
+  end function
+!**************************************************************************
+
 
 !**************************************************************************
 !
@@ -316,21 +431,53 @@ module soap_turbo_radial_op
 ! of poly. radial basis and smoothing function (filter)
 ! (in the notes: B_l, B_r)
 !
-  subroutine get_constant_poly_filter_coeff(rj, sigma_j, rcut_soft, rcut_hard, piece, B)
+  subroutine get_constant_poly_filter_coeff(rj, width_j, r_filter, filter_width, piece, B)
     implicit none
 
-    real*8, intent(in) :: rj, sigma_j, rcut_soft, rcut_hard
+    real*8, intent(in) :: rj, width_j, r_filter, filter_width
     character(*), intent(in) :: piece
     integer :: i
     real*8 :: C_filter(1:4), col_poly(1:4), C_poly(1:7,1:4)
     real*8, intent(inout) :: B(:)
 
 !   coeff. from the filter
-    C_filter = g_aux(0.d0, rcut_soft, 2.d0*sqrt(2.d0*log(2.d0))*(rcut_hard - rcut_soft), "right")
+    C_filter = g_aux(0.d0, r_filter, filter_width, "right")
 
 !   build Toeplitz matrix a.k.a. diagonal-constant matrix
     C_poly = 0.d0
-    col_poly(1:4) = g_aux(0.d0, rj, sigma_j, piece)
+    col_poly(1:4) = g_aux(0.d0, rj, width_j, piece)
+
+    do i = 1, 4
+      C_poly(i:i+3, i) = col_poly
+    end do
+
+    B = matmul( C_poly, C_filter )
+
+  end subroutine
+!**************************************************************************
+
+!**************************************************************************
+!
+! This subroutine returns the constant coefficients for the 
+! contribution from the buffer zone for the derivatives, coming from
+! the dot products of poly. radial basis and smoothing function (filter)
+! (in the notes: partial_der(B_l), partial_der(B_r))
+!
+  subroutine get_constant_poly_filter_coeff_der(rj, width_j, width_scaling, r_filter, filter_width, piece, B)
+    implicit none
+
+    real*8, intent(in) :: rj, width_j, r_filter, filter_width, width_scaling
+    character(*), intent(in) :: piece
+    integer :: i
+    real*8 :: C_filter(1:4), col_poly(1:4), C_poly(1:7,1:4)
+    real*8, intent(inout) :: B(:)
+
+!   coeff. from the filter
+    C_filter = g_aux(0.d0, r_filter, filter_width, "right")
+
+!   build Toeplitz matrix a.k.a. diagonal-constant matrix
+    C_poly = 0.d0
+    col_poly(1:4) = g_aux_der(0.d0, rj, width_j, width_scaling, piece)
 
     do i = 1, 4
       C_poly(i:i+3, i) = col_poly
