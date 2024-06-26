@@ -315,6 +315,9 @@ module soap_turbo_radial_op
 !   Since this is a global factor, once we have normalized
 !   the SOAP vectors it does not have an effect anymore.
     exp_coeff = exp_coeff * dsqrt(rcut_hard_in)
+    if( do_derivatives )then
+      exp_coeff_der = exp_coeff_der / dsqrt(rcut_hard_in)
+    end if
 !   *********************************************
 
 !   This is for debugging
@@ -380,12 +383,12 @@ module soap_turbo_radial_op
       poly = [ 6.d0*(x + (width_scaling + 1.d0)*x**2 + width_scaling*x**3)/width,              &
                6.d0*(1.d0 + 2.d0*(width_scaling + 1.d0)*x + 3.d0*width_scaling*x**2)/width**2, &
                6.d0*(width_scaling + 1 + 3.d0*width_scaling*x)/width**3,                       &
-              -6.d0*width_scaling/width**4 ]
+               6.d0*width_scaling/width**4 ]
     else if ( piece == "right" )then
       poly = [ 6.d0*(x + (width_scaling - 1.d0)*x**2 - width_scaling*x**3)/width,              &
                6.d0*(1.d0 + 2.d0*(width_scaling - 1.d0)*x - 3.d0*width_scaling*x**2)/width**2, &
                6.d0*(width_scaling - 1 - 3.d0*width_scaling*x)/width**3,                       &
-               6.d0*width_scaling/width**4 ]
+              -6.d0*width_scaling/width**4 ]
     end if
 
   return
