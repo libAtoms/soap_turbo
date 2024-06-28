@@ -74,7 +74,7 @@ module soap_turbo_radial_op
     character(*), intent(in) :: scaling_mode
 !
     integer :: i, j, k
-    real*8 :: pi, rj, s2, atom_width, atom_width_scaling, filter_width
+    real*8 :: pi, rj, s2, atom_width, atom_width_scaling, filter_width, x
     real*8 :: lim_soft(1:3), lim_buffer(1:3), B(1:7)
     real*8 :: M_left(1:7, 1:2), M_right(1:7, 1:2)
     real*8, allocatable :: A(:,:), I0(:,:), I_left(:), I_right(:)
@@ -237,12 +237,14 @@ module soap_turbo_radial_op
               exp_coeff_soft_der = I_left_der + I_right_der
 !             add derivatives of the integral limits if necessary --> (1), (2) in notes
               if ( lim_soft(1) == rj - atom_width )then
-                poly_left = g_aux(lim_soft(1), rj, atom_width, 'left')
-                lower_limit_der = poly_left(1) * (1.d0 - atom_width_scaling) * I0(4:alpha_max + 4, 1)
+                x = (lim_soft(1) - rj)/atom_width
+                poly_left = 1.d0 - 3.d0*x**2 - 2.d0*x**3
+                lower_limit_der = poly_left * (1.d0 - atom_width_scaling) * I0(4:alpha_max + 4, 1)
               end if
               if ( lim_soft(3) == rj + atom_width )then
-                poly_right = g_aux(lim_soft(3), rj, atom_width, 'right')
-                upper_limit_der = poly_right(1) * (1.d0 + atom_width_scaling) * I0(4:alpha_max + 4, 3)
+                x = (lim_soft(3) - rj)/atom_width
+                poly_right = 1.d0 - 3.d0*x**2 + 2.d0*x**3
+                upper_limit_der = poly_right * (1.d0 + atom_width_scaling) * I0(4:alpha_max + 4, 3)
               end if 
             end if
           end if
@@ -285,24 +287,28 @@ module soap_turbo_radial_op
               exp_coeff_buffer_der = I_left_der + I_right_der
 !             add derivatives of the integral limits if necessary --> (1), (2) in notes
               if ( lim_buffer(1) == rj - atom_width )then
-                poly_left = g_aux(lim_buffer(1), rj, atom_width, 'left')
-                poly_filter = g_aux(lim_buffer(1), rcut_soft, filter_width, 'right')
-                lower_limit_der = poly_left(1) * (1.d0 - atom_width_scaling) * poly_filter(1) * I0(4:alpha_max + 4, 1)
+                x = (lim_buffer(1) - rj)/atom_width
+                poly_left = 1.d0 - 3.d0*x**2 - 2.d0*x**3
+                x = (lim_buffer(1) - rcut_soft)/filter_width
+                poly_filter = 1.d0 - 3.d0*x**2 + 2.d0*x**3
+                lower_limit_der = poly_left * (1.d0 - atom_width_scaling) * poly_filter * I0(4:alpha_max + 4, 1)
               end if
               if ( lim_buffer(3) == rj + atom_width )then
-                poly_right = g_aux(lim_buffer(3), rj, atom_width, 'right')
-                poly_filter = g_aux(lim_buffer(3), rcut_soft, filter_width, 'right')
-                upper_limit_der = poly_right(1) * (1.d0 + atom_width_scaling) * poly_filter(1) * I0(4:alpha_max + 4, 3)
+                x = (lim_buffer(3) - rj)/atom_width
+                poly_right = 1.d0 - 3.d0*x**2 + 2.d0*x**3
+                x = (lim_buffer(3) - rcut_soft)/filter_width
+                poly_filter = 1.d0 - 3.d0*x**2 + 2.d0*x**3
+                upper_limit_der = poly_right * (1.d0 + atom_width_scaling) * poly_filter * I0(4:alpha_max + 4, 3)
               end if 
             end if
           end if
 !         Transform from g_alpha to g_n (the orthonormal basis)
           exp_coeff(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_soft(1:alpha_max) + exp_coeff_buffer(1:alpha_max) )
           if( do_derivatives )then
-            exp_coeff_der(1:alpha_max, k) = exp_coeff_soft_der(1:alpha_max) + upper_limit_der + &
-                                            exp_coeff_buffer_der(1:alpha_max) - lower_limit_der
-            exp_coeff_der(1:alpha_max, k) = amplitude * matmul( W, exp_coeff_der(1:alpha_max, k) ) + &
-                                            amplitude_der * exp_coeff(1:alpha_max, k)
+            exp_coeff_der(1:alpha_max, k) = amplitude * ( exp_coeff_soft_der(1:alpha_max) + upper_limit_der + &
+                                            exp_coeff_buffer_der(1:alpha_max) - lower_limit_der ) + &
+                                            amplitude_der * ( exp_coeff_soft(1:alpha_max) + exp_coeff_buffer(1:alpha_max) )
+            exp_coeff_der(1:alpha_max, k) = matmul( W,  exp_coeff_der(1:alpha_max, k))
           end if
         end if
       end do
