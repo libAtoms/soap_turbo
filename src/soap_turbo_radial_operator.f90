@@ -59,7 +59,7 @@ module soap_turbo_radial_op
 ! polynomial basis set and a polynomial piecewise representation for 
 ! the atomic density
 !
-  subroutine get_radial_expansion_coefficients_poly3operator_fast(n_sites, n_neigh, rjs_in, alpha_max, &
+  subroutine get_radial_expansion_coefficients_poly3operator_0(n_sites, n_neigh, rjs_in, alpha_max, &
                                                              rcut_soft_in, rcut_hard_in, atom_sigma_in, &
                                                              atom_sigma_scaling, amplitude_scaling, W, &
                                                              scaling_mode, mask, radial_enhancement, &
@@ -374,7 +374,8 @@ module soap_turbo_radial_op
       atom_widths = 2.d0*sqrt(2.d0*log(2.d0))*(atom_sigma_in + atom_sigma_scaling*rjs_in(k+1:k+n_neigh(i)))
 
 !     count number of atoms within buffer region
-      nn = count( rcut_soft_in < rcut_hard_in .and. rjs_in(k+1:k+n_neigh(i)) + atom_widths > rcut_soft_in .and. mask(k+1:k+n_neigh(i)) )
+      nn = count( rcut_soft_in < rcut_hard_in .and. mask(k+1:k+n_neigh(i)) .and. &
+                  rjs_in(k+1:k+n_neigh(i)) + atom_widths > rcut_soft_in )
       if( nn > 0 )then
 !       These need to be allocated immediately
         allocate( rjs(1:nn) )
@@ -563,7 +564,7 @@ module soap_turbo_radial_op
           do k2 = 1, nn
             M_right_der_array(k2, 1:7, 2) = I0_array(k2, 1:7, 2) * &
                                             matmul( -B_der(1:7, k2), M_radial_monomial(lim_buffer_array(k2, 2), 6) )
-            M_right_der_array(k2, 1:7, 3) = I0_array(k2, 1:7, 3) * 
+            M_right_der_array(k2, 1:7, 3) = I0_array(k2, 1:7, 3) * &
                                             matmul( -B_der(1:7, k2), M_radial_monomial(lim_buffer_array(k2, 3), 6) )
           end do
           I_right_der_array(1:nn, 1:alpha_max) = matmul( M_right_der_array(1:nn, 1:7, 3), transpose(A(1:alpha_max, 1:7)) ) * &
