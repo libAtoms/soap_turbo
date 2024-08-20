@@ -375,8 +375,10 @@ module soap_turbo_angular
 !
 ! This subroutine gets the angular expansion coefficients.
 !
-  subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_in, &
-                                                atom_sigma_scaling, rcut, lmax, &
+! subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_in, &
+!                                               atom_sigma_scaling, rcut, lmax, &
+  subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, &
+                                                rcut, lmax, &
                                                 eimphi, preflm, plm_array, prefl, prefm, fact_array, &
                                                 mask, n_species, eimphi_rad_der, do_derivatives, &
                                                 prefl_rad_der, exp_coeff, exp_coeff_rad_der, &
@@ -391,7 +393,8 @@ module soap_turbo_angular
     integer(c_int), intent(in) :: n_species, n_atom_pairs
     integer (c_int):: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp, k_int,l,m,lmpo
     complex*16, intent(out), target :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
-    real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
+!   real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
+    real*8 :: thetas(:), phis(:),  atom_sigma, rjs(:), x, theta, phi, rj
     real(c_double), intent(in) :: rcut
     real*8 :: amplitude
 !   I should probably allocate and save these variables internally to minimize the number of variables that
@@ -422,6 +425,7 @@ module soap_turbo_angular
     type(c_ptr) :: plm_array_div_sin_d, plm_array_der_mul_sin_d
     integer(c_size_t) :: st_prefl_array_global, st_plm_array_global,  st_eimphi_global, st_plm_array_der_global
     type(c_ptr), intent(inout) :: gpu_stream
+
     
     c_do_derivatives=logical( .false., kind=c_bool ) 
     if(do_derivatives) then 
