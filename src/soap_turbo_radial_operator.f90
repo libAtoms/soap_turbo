@@ -180,7 +180,7 @@ module soap_turbo_radial_op
 !        allocate( soft_weights(1:nn) )
 !        allocate( buffer_weights(1:nn) )
 !       we might be able to get some extra speed by swapping the order of some of these dimensions
-        allocate( I0_array(1:nn, 1:alpha_max, 1:3) )
+        allocate( I0_array(1:nn, 1:alpha_max + 4, 1:3) )
         allocate( g_aux_left_array(1:nn, 1:alpha_max, 1:2) )
         allocate( g_aux_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
         allocate( M_left_array(1:nn, 1:alpha_max, 1:2) )
@@ -285,7 +285,7 @@ module soap_turbo_radial_op
         lim_soft_array(:, 2) = min( rjs, rcut_soft )               ! upper limit left / lower limit right
         lim_soft_array(:, 3) = min( rcut_soft, rjs + atom_widths ) ! upper limit right
 
-!       dimensions of M_radial_poly_array are (1:nn, 1:alpha_max, 1:3)
+!       dimensions of M_radial_poly_array are (1:nn, 1:alpha_max + 4, 1:3)
         I0_array = M_radial_poly_array(lim_soft_array, alpha_max + 4, rcut_hard)
         g_aux_left_array(1:nn, 1:4, 1:2) = g_aux_array(lim_soft_array(:, 1:2), rjs(:), atom_widths(:), "left")
         g_aux_right_array(1:nn, 1:4, 2:3) = g_aux_array(lim_soft_array(:, 2:3), rjs(:), atom_widths(:), "right")
@@ -401,7 +401,7 @@ module soap_turbo_radial_op
 !        allocate( soft_weights(1:nn) )
 !        allocate( buffer_weights(1:nn) )
 !       we might be able to get some extra speed by swapping the order of some of these dimensions
-        allocate( I0_array(1:nn, 1:alpha_max, 1:3) )
+        allocate( I0_array(1:nn, 1:max(7, alpha_max + 4), 1:3) )
         allocate( g_aux_left_array(1:nn, 1:alpha_max, 1:2) )
         allocate( g_aux_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
         allocate( M_left_array(1:nn, 1:alpha_max, 1:2) )
@@ -909,21 +909,21 @@ module soap_turbo_radial_op
 ! polynomial radial basis 
 ! (in the notes: I0, R_hard)
 !
-  function M_radial_poly_array(r, alpha_max, rcut) result(radial_terms)
+  function M_radial_poly_array(r, a_max, rcut) result(radial_terms)
     implicit none
 
-    integer, intent(in) :: alpha_max
+    integer, intent(in) :: a_max
     real*8, intent(in) :: rcut, r(:,:)
     integer :: i, j
 !   The 1st dimension of r is neighbor index and the third dimension 1:3 for the 3 limits
-    real*8, dimension(1:size(r,1), 1:alpha_max, 1:size(r,2)) :: radial_terms
+    real*8, dimension(1:size(r,1), 1:a_max, 1:size(r,2)) :: radial_terms
     real*8, dimension(1:size(r,1), 1:size(r,2)) :: r_slice
 
     r_slice = 1.d0 - r/rcut
 
     do j = 1, size(r, 2)
       radial_terms(:, 1, j) = 1.d0
-      do i = 2, alpha_max
+      do i = 2, a_max
         radial_terms(:, i, j) = radial_terms(:, i-1, j) * r_slice(:, j)
       end do
     end do
