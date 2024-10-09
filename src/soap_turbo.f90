@@ -54,14 +54,11 @@ module soap_turbo_desc
 !  real*8, intent(inout) :: time_misca,time_get_rad, time_get_ang, time_get_cart
 !  real*8 :: tt_misca(2)=0.0,tt_rad(2)=0.0,tt_ang(2)=0.0,tt_cart(2)=0.0
   real(c_double), intent(in), target :: rjs(:), thetas(:), phis(:)
-! real(c_double), intent(in), target :: amplitude_scaling(:), atom_sigma_r_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
-! real(c_double), intent(in), target :: amplitude_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
-! real(c_double), intent(in), target :: central_weight(:), atom_sigma_r(:), global_scaling(:)
   real(c_double), intent(in), target :: central_weight(:), atom_sigma_r(:)
-! real(c_double), intent(in), target :: nf(:), rcut_hard(:), rcut_soft(:)
   real(c_double), intent(in), target :: rcut_hard(:)
 
-  integer(c_int), intent(in), target :: n_species, radial_enhancement, species(:,:), species_multiplicity(:)
+  integer(c_int), intent(in) :: n_species, radial_enhancement
+  integer(c_int), intent(in), target ::  species(:,:), species_multiplicity(:)
   integer, intent(in) :: n_sites,l_max, n_atom_pairs, alpha_max(:), compress_soap_indices(:)
   integer(c_int), intent(in), target ::  n_neigh(:)
   logical, intent(in) :: do_derivatives, do_timing, compress_soap
@@ -86,7 +83,7 @@ module soap_turbo_desc
   complex(c_double_complex), allocatable, target :: eimphi(:), prefm(:), eimphi_rad_der(:)
 
   real(c_double), allocatable,target :: W(:,:), S(:,:), multiplicity_array(:) 
-  real(c_double), allocatable,target ::W_check(:,:), S_check(:,:)
+!  real(c_double), allocatable,target ::W_check(:,:), S_check(:,:)
   real(c_double), allocatable,target :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
   real*8, allocatable :: W_temp(:,:), S_temp(:,:)
   real(c_double), allocatable,target :: radial_exp_coeff(:,:), soap_pol_der(:,:)
@@ -161,32 +158,22 @@ module soap_turbo_desc
 !-------------------
 
   
-  
-  ! call gpu_device_sync()
   ttt(1)=MPI_Wtime() 
 
-!  st_soap=sizeof(soap) !n_soap*n_sites*sizeof(soap(1,1))
-!  call gpu_malloc_all(soap_d, st_soap, gpu_stream)
-
-!  st_soap_cart_der= sizeof(soap_cart_der) !  3*n_soap*n_atom_pairs*sizeof(soap_cart_der(1,1,1))
-!  call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream) !call gpu_malloc_all_blocking(soap_cart_der_d, st_soap_cart_der) !call gpu_malloc_all(soap_cart_der_d, st_soap_cart_der, gpu_stream)
-!  stop
   if( basis == "poly3gauss" )then
-    bintybint=1000
+     bintybint=1000
   else if( basis == "poly3" )then
-    bintybint=2000
+     bintybint=2000
   end if
 
-    c_do_derivatives=logical( .false., kind=c_bool ) 
-    if(do_derivatives) then 
-    c_do_derivatives=logical( .true., kind=c_bool )
-    endif
+  c_do_derivatives=logical( .false., kind=c_bool ) 
+  if(do_derivatives) then 
+     c_do_derivatives=logical( .true., kind=c_bool )
+  endif
 
-!Total 24.1 s        
- ! call cpu_time(ttt(1))
 
   if( do_timing )then
-    call cpu_time(time3)
+     call cpu_time(time3)
   end if
 
 !-------------------
@@ -230,14 +217,6 @@ module soap_turbo_desc
   end do
 
 
-  
-  
-  !23.8
-  !call cpu_time(ttt(1))
-  ! write(*,*)
-  ! write(*,*)
-  ! write(*,*)
-  ! write(*,*) "Firsty firsty"
 
 ! Do some array allocation for the SOAP expansion part
   k_max = 1 + l_max*(l_max+1)/2 + l_max
@@ -247,10 +226,14 @@ module soap_turbo_desc
   allocate( prefl(0:l_max) ) 
   allocate( prefm(0:l_max) )
   allocate( fact_array(1:l_max) ) !real*8
+
   call get_preflm(preflm, l_max)
+
   st_size_preflm=k_max*sizeof(preflm(1))
+
   call gpu_malloc_all(preflm_d,st_size_preflm, gpu_stream)
   call cpy_htod( c_loc(preflm), preflm_d, st_size_preflm, gpu_stream)
+
   if( do_derivatives )then
     allocate( prefl_rad_der(0:l_max) ) ! real*8
     allocate( eimphi_rad_der(1:k_max) ) ! complex*16
@@ -262,151 +245,122 @@ module soap_turbo_desc
     time1 = time2
   end if
 
-  ! 23.9 s
-  ! call cpu_time(ttt(1))
 
 ! This is to build the radial basis
   n_max = 0
   do i = 1, n_species
     n_max = n_max + alpha_max(i)
   end do
-  ! if( n_max_prev /= n_max )then
-  !   n_max_prev = n_max
-  !   recompute_basis = .true.
-  ! end if
-  !W and S array are actually never deallocated in the original code! and it use weird "save" semantic to keep allocation between iteration, but never takes care to free the memory.
-  !will try to have them on the device only as they don't seem to be used on the host side now.
 
   if( recompute_basis )then
-    ! if( W_S_initialized )then
-    !   call gpu_free_async(W_d,gpu_stream)
-    !   call gpu_free_async(S_d,gpu_stream)
-    ! end if
     if( allocated(W) .or. allocated(S) )then
       deallocate(W, S)
     end if
+
     allocate( W(1:n_max, 1:n_max) )
     allocate( S(1:n_max, 1:n_max) )
+
     W = 0.d0
     S = 0.d0
 
     size_tmp_var = n_max*n_max*c_double
     st_W_d = n_max*n_max*c_double
     st_S_d = n_max*n_max*c_double
-    print *, "allocating W_d and S_d"
+
     call gpu_malloc_all(W_d,size_tmp_var, gpu_stream)
     call gpu_malloc_all(S_d,size_tmp_var, gpu_stream)
+
     tmp_cint_val = 0
-    !    write(0,*) tmp_cint_val
-  
+
     call gpu_memset_async(S_d,tmp_cint_val,size_tmp_var, gpu_stream)
     call gpu_memset_async(W_d,0,size_tmp_var, gpu_stream)
     size_tmp_var = maxval(alpha_max)*maxval(alpha_max)*c_double
-    ! call gpu_malloc_all(W_d_work,size_tmp_var, gpu_stream)
-    ! call gpu_malloc_all(S_d_work,size_tmp_var, gpu_stream)
-!   This is done per species. Each loop iteration modifies the slice of the W and S matrices that
-!   corresponds to the species in question. The radial basis functions for species A are always
-!   assumed orthogonal to the basis functions for species B. W and S are therefore block diagonal.
-    do i = 1, n_species
-!     We pass these temp arrays with the right size because the Lapack/Blas routines internally fail
-!     if the memory is not contiguous
-      allocate( S_temp(1:alpha_max(i), 1:alpha_max(i)) )
-      allocate( W_temp(1:alpha_max(i), 1:alpha_max(i)) )
-     
-     S_temp = 0.d0
-     W_temp = 0.d0
-      if( basis == "poly3gauss" )then
-        call get_orthonormalization_matrix_poly3gauss(alpha_max(i), atom_sigma_r(i), rcut_hard(i), S_temp, W_temp)
-        !call get_orthonormalization_matrix_poly3gauss_gpu(alpha_max(i), atom_sigma_r(i), rcut_hard(i), S_d_work, W_d_work, cublas_handle, gpu_stream)
-      else if( basis == "poly3" )then
-        call get_orthonormalization_matrix_poly3(alpha_max(i), S_temp, W_temp)
-       ! call get_orthonormalization_matrix_poly3_gpu(alpha_max(i), c_loc(S_temp), c_loc(W_temp), cublas_handle, gpu_stream)
-      end if
-      S(i_beg(i):i_end(i), i_beg(i):i_end(i)) = S_temp
-      W(i_beg(i):i_end(i), i_beg(i):i_end(i)) = W_temp
-      !not sure here. -1 should be needed for the fortran to c start indexes.
-!        write(0,*) "calling copy"
-      !call orthonormalization_copy_to_global_matrix(S_d_work,S_d,alpha_max(i),i_beg(i)-1,n_max,gpu_stream)
-!        write(0,*) "calling done"
-      !call orthonormalization_copy_to_global_matrix(W_d_work,W_d,alpha_max(i),i_beg(i)-1,n_max,gpu_stream)
-!        write(0,*) "second calling done"
-      deallocate( S_temp, W_temp )
-    end do
-    ! call gpu_free_async(S_d_work,gpu_stream)
-    ! call gpu_free_async(W_d_work,gpu_stream)
 
-  size_tmp_var = n_max*n_max*c_double
-  ! call cpy_htod_blocking(c_loc(S),S_d,size_tmp_var)
-  ! call cpy_htod_blocking(c_loc(W),W_d,size_tmp_var)
-  call cpy_htod(c_loc(S),S_d,size_tmp_var,gpu_stream)
-  call cpy_htod(c_loc(W),W_d,size_tmp_var,gpu_stream)
-    
+    !   This is done per species. Each loop iteration modifies the slice of the W and S matrices that
+    !   corresponds to the species in question. The radial basis functions for species A are always
+    !   assumed orthogonal to the basis functions for species B. W and S are therefore block diagonal.
+
+    do i = 1, n_species
+       !     We pass these temp arrays with the right size because the Lapack/Blas routines internally fail
+       !     if the memory is not contiguous
+       allocate( S_temp(1:alpha_max(i), 1:alpha_max(i)) )
+       allocate( W_temp(1:alpha_max(i), 1:alpha_max(i)) )
+
+       S_temp = 0.d0
+       W_temp = 0.d0
+       if( basis == "poly3gauss" )then
+          call get_orthonormalization_matrix_poly3gauss(alpha_max(i), atom_sigma_r(i), rcut_hard(i), S_temp, W_temp)
+
+          ! call get_orthonormalization_matrix_poly3gauss_gpu(alpha_max(i), atom_sigma_r(i), rcut_hard(i), S_d_work, W_d_work, cublas_handle, gpu_stream)
+       else if( basis == "poly3" )then
+          call get_orthonormalization_matrix_poly3(alpha_max(i), S_temp, W_temp)
+          ! call get_orthonormalization_matrix_poly3_gpu(alpha_max(i), c_loc(S_temp), c_loc(W_temp), cublas_handle, gpu_stream)
+       end if
+
+       S(i_beg(i):i_end(i), i_beg(i):i_end(i)) = S_temp
+       W(i_beg(i):i_end(i), i_beg(i):i_end(i)) = W_temp
+       deallocate( S_temp, W_temp )
+    end do
+
+    size_tmp_var = n_max*n_max*c_double
+    call cpy_htod(c_loc(S),S_d,size_tmp_var,gpu_stream)
+    call cpy_htod(c_loc(W),W_d,size_tmp_var,gpu_stream)
+
+    deallocate(S, W)
+  
  end if
 
 
-
-  !W_S_initialized = .true.   
-  ! allocate( W_check(1:n_max, 1:n_max) )
-  ! allocate( S_check(1:n_max, 1:n_max) )
-  ! size_tmp_var = n_max*n_max*c_double
-  ! call cpy_dtoh_blocking(S_d,c_loc(S_check), size_tmp_var)
-  ! call cpy_dtoh_blocking(W_d,c_loc(W_check), size_tmp_var)
-  ! do j=1,n_max
-  !   do i=1,n_max
-  !     write(*,*) i,j, S(i,j)-S_check(i,j), W(i,j)-W_check(i,j)
-  !     enddo
-  ! enddo
-
-  ! stop
 
   if( do_timing )then
     call cpu_time(time2)
     basis_time = time2 - time1
   end if
 
-  ! 23.7
-  ! call cpu_time(ttt(1))
-
-! This is for the expansion coefficients and the soap vectors
+  ! This is for the expansion coefficients and the soap vectors
+                write(*,*)  "alloc radial exp coeff "
   allocate( radial_exp_coeff(1:n_max, 1:n_atom_pairs) )
   allocate( angular_exp_coeff(1:k_max, 1:n_atom_pairs) )
+  allocate( cnk( 1:k_max, 1:n_max, 1:n_sites) )
+
   radial_exp_coeff=0.d0
   angular_exp_coeff = 0.d0
-  allocate( cnk( 1:k_max, 1:n_max, 1:n_sites) )
   cnk = 0.d0
-! Handle SOAP compression here
+
+  ! Handle SOAP compression here
   allocate( skip_soap_component(0:l_max, 1:n_max, 1:n_max) )
+
   skip_soap_component = .false.
   if( compress_soap )then
-    if( do_timing )then
-      call cpu_time(time1)
-    end if
-    n_soap = size(compress_soap_indices)
-    skip_soap_component = .true.
-    counter = 0
-    do n = 1, n_max
-      do np = n, n_max
-        do l = 0, l_max
-          counter = counter + 1
-          do i = 1, n_soap
-            if( compress_soap_indices(i) == counter )then
-              skip_soap_component(l, np, n) = .false.
-              exit
-            end if
-          end do
+     if( do_timing )then
+        call cpu_time(time1)
+     end if
+     n_soap = size(compress_soap_indices)
+     skip_soap_component = .true.
+     counter = 0
+     do n = 1, n_max
+        do np = n, n_max
+           do l = 0, l_max
+              counter = counter + 1
+              do i = 1, n_soap
+                 if( compress_soap_indices(i) == counter )then
+                    skip_soap_component(l, np, n) = .false.
+                    exit
+                 end if
+              end do
+           end do
         end do
-      end do
-    end do
-    if( do_timing )then
-      call cpu_time(time2)
-      compress_time = time2 - time1
-    end if
+     end do
+     if( do_timing )then
+        call cpu_time(time2)
+        compress_time = time2 - time1
+     end if
   else
-    n_soap = n_max*(n_max+1)/2 * (l_max+1)
-  end if 
+     n_soap = n_max*(n_max+1)/2 * (l_max+1)
+  end if
 
   if( do_timing )then
-    call cpu_time(time1)
+     call cpu_time(time1)
   end if
 
   allocate( sqrt_dot_p(1:n_sites) )
@@ -420,7 +374,8 @@ module soap_turbo_desc
 
   ! sqrt_dot_p = 0.d0
   if( do_derivatives )then
-    allocate( radial_exp_coeff_der(1:n_max, 1:n_atom_pairs) )
+     allocate( radial_exp_coeff_der(1:n_max, 1:n_atom_pairs) )
+     ! These angular arrays are not used below in the gpu branch, they should be cleaned up 
     allocate( angular_exp_coeff_rad_der(1:k_max, 1:n_atom_pairs) )
     allocate( angular_exp_coeff_azi_der(1:k_max, 1:n_atom_pairs) )
     allocate( angular_exp_coeff_pol_der(1:k_max, 1:n_atom_pairs) )
@@ -471,6 +426,7 @@ module soap_turbo_desc
   
   allocate(new_mask(1:n_atom_pairs,1:n_species))
   new_mask= logical( .false., kind=c_bool ) !.false.
+
   do i_sp=1,n_species
     do j=1,n_atom_pairs
       if(mask(j,i_sp)) then
@@ -481,6 +437,7 @@ module soap_turbo_desc
   st_mask_d= n_atom_pairs*n_species*sizeof(new_mask(1,1))
   call gpu_malloc_all(mask_d, st_mask_d, gpu_stream)
   call cpy_htod(c_loc(new_mask), mask_d, st_mask_d, gpu_stream)
+  if( allocated( new_mask ) ) deallocate( new_mask )
 
   st_do_central_d= n_species*sizeof(do_central(1))
   call gpu_malloc_all(do_central_d, st_do_central_d, gpu_stream)
@@ -488,36 +445,19 @@ module soap_turbo_desc
 
   size_rcut_hard=size(rcut_hard,1)
   st_size_rcut_hard=size_rcut_hard*sizeof(rcut_hard(1))
-! call gpu_malloc_all(rcut_hard_d,st_size_rcut_hard, gpu_stream)
-! call cpy_htod(c_loc(rcut_hard),rcut_hard_d,st_size_rcut_hard, gpu_stream)
-! call gpu_malloc_all(rcut_soft_d,st_size_rcut_hard, gpu_stream)
-! call cpy_htod(c_loc(rcut_soft),rcut_soft_d,st_size_rcut_hard, gpu_stream)
-! size_rcut_hard=size(rcut_hard,1)
-! call gpu_malloc_all(nf_d,st_size_rcut_hard, gpu_stream)
-! call cpy_htod(c_loc(nf),nf_d,st_size_rcut_hard, gpu_stream)
-
   size_atom_sigma_r=size(atom_sigma_r,1)
   st_size_atom_sigma_r=size_atom_sigma_r*sizeof(atom_sigma_r(1))
-! call gpu_malloc_all(atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
-! call cpy_htod(c_loc(atom_sigma_r),atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
-! call gpu_malloc_all(atom_sigma_r_scaling_d,st_size_atom_sigma_r, gpu_stream)
-! call cpy_htod(c_loc(atom_sigma_r_scaling),atom_sigma_r_scaling_d,st_size_atom_sigma_r, gpu_stream)
-! call gpu_malloc_all(amplitude_scaling_d,st_size_atom_sigma_r, gpu_stream)
-! call cpy_htod(c_loc(amplitude_scaling),amplitude_scaling_d,st_size_atom_sigma_r, gpu_stream)
-! size_alphamax=size(alpha_max,1)
-! st_size_alphamax=size_alphamax*sizeof(alpha_max(1))
-! call gpu_malloc_all(alpha_max_d,st_size_alphamax, gpu_stream)
-! call cpy_htod(c_loc(alpha_max),alpha_max_d,st_size_alphamax, gpu_stream)
 
   ntemp = maxval(alpha_max)
   ntemp_der = ntemp
   if (do_derivatives) ntemp = ntemp+2
+  
   ntemp_d=ntemp*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
   ntemp_der_d=ntemp_der*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
   st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
+
   call gpu_malloc_all(radial_exp_coeff_d, st_rad_exp_coeff_der_double, gpu_stream)
   call gpu_memset_async(radial_exp_coeff_d,0, st_rad_exp_coeff_der_double, gpu_stream)
-  !call cpy_htod(c_loc(radial_exp_coeff),radial_exp_coeff_d, st_rad_exp_coeff_der_double, gpu_stream)
   call gpu_malloc_all(radial_exp_coeff_temp1_d, ntemp_d, gpu_stream)
   call gpu_malloc_all(radial_exp_coeff_temp2_d, ntemp_d, gpu_stream)
 
@@ -538,25 +478,11 @@ module soap_turbo_desc
   call gpu_malloc_all(i_end_d, st_size_i_end, gpu_stream)
   call cpy_htod(c_loc(i_end),i_end_d,st_size_i_end, gpu_stream)
 
-!  size_1_W=size(W,1)
-!  size_2_W=size(W,2)
-!  st_size_W=size_1_W*size_2_W*sizeof(W(1,1))
-!  call gpu_malloc_all(W_d,st_size_W, gpu_stream)
-!  call cpy_htod(c_loc(W),W_d,st_size_W, gpu_stream)
-
-! size_central_weight=size(central_weight,1)
-! st_size_central_weight= size_central_weight*sizeof(central_weight(1))
-! call gpu_malloc_all(central_weight_d,st_size_central_weight,gpu_stream)
-! call cpy_htod(c_loc(central_weight),central_weight_d,st_size_central_weight, gpu_stream)
-
   call gpu_malloc_all(rjs_d,st_n_atom_pairs_double, gpu_stream)
   call cpy_htod(c_loc(rjs),rjs_d, st_n_atom_pairs_double,gpu_stream)
 
   call gpu_malloc_all(n_neigh_d,st_n_sites_int,gpu_stream)
   call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int,gpu_stream)
-
-  !call gpu_device_sync()
-  !tt_rad(1)=MPI_Wtime()
 
   mode = 0
   if( scaling_mode == "polynomial" ) mode =1
@@ -587,24 +513,9 @@ module soap_turbo_desc
 !                                                  radial_exp_coeff_der(i_beg(i):i_end(i), :) )
   end if
 
-  ! do kij=1,n_atom_pairs
-  ! do n=1,n_max
-  ! if(isnan(radial_exp_coeff(n,kij))) then
-  ! write(*,*)
-  ! write(*,*) "Nan allert!",n,kij
-  ! !stop
-  ! endif
-  ! enddo
-  ! enddo
-  ! ttt(1)=MPI_Wtime() 
   allocate(k2_i_site(1:n_atom_pairs))
-  !write(*,*) "N atom pairs", n_atom_pairs
   allocate(k2_start(1:n_sites))
 
-  ! call gpu_device_sync()
-  ! tt_rad(2)=MPI_Wtime()
-  ! time_get_rad=time_get_rad+tt_rad(2)-tt_rad(1)
-  
   k2 = 0
   do i = 1, n_sites
    k2_start(i)=k2
@@ -615,7 +526,6 @@ module soap_turbo_desc
   enddo
    
   
-  !call gpu_malloc_all_blocking(k2_start_d,st_n_sites_int) !
   call gpu_malloc_all(k2_start_d,st_n_sites_int,gpu_stream)
   call cpy_htod(c_loc(k2_start), k2_start_d, st_n_sites_int, gpu_stream)
 
@@ -623,88 +533,12 @@ module soap_turbo_desc
   call gpu_malloc_all(k2_i_site_d,st_n_atom_pairs_int,gpu_stream)
   call cpy_htod(c_loc(k2_i_site),k2_i_site_d, st_n_atom_pairs_int, gpu_stream)
   
-  !st_size_amplitudes=n_sites*
-  !st_size_exp_coeff_temp=size(k_idx,1)*
-  ! write(*,*)
-  ! write(*,*) i_beg
-  ! write(*,*) i_end
-  ! write(*,*)
-  ! call gpu_malloc_all(amplitude_save_d, st_size_amplitudes, gpu_stream)
-  ! call gpu_malloc_all(amplitude_der_save_d, st_size_amplitudes, gpu_stream)
-
-!  st_rad_exp_coeff_der_double=n_max*n_atom_pairs*sizeof(radial_exp_coeff_der(1,1))
-!  call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double , gpu_stream) !call gpu_malloc_all(radial_exp_coeff_der_d, st_rad_exp_coeff_der_double, gpu_stream)
-!  call cpy_htod(c_loc(radial_exp_coeff_der),radial_exp_coeff_der_d, &
-!               st_rad_exp_coeff_der_double, gpu_stream)
-
-
-!  call gpu_malloc_all(radial_exp_coeff_d, st_rad_exp_coeff_der_double, gpu_stream)
-!  call cpy_htod(c_loc(radial_exp_coeff),radial_exp_coeff_d, & 
-!                    st_rad_exp_coeff_der_double, gpu_stream)
-  
-! size_rcut_hard=size(rcut_hard,1)
-! st_size_rcut_hard=size_rcut_hard*sizeof(rcut_hard(1))
-! call gpu_malloc_all(rcut_hard_d,st_size_rcut_hard, gpu_stream)
-! call cpy_htod(c_loc(rcut_hard),rcut_hard_d,st_size_rcut_hard, gpu_stream)
-
-! size_i_beg=size(i_beg,1)
-! st_size_i_beg=size_i_beg*sizeof(i_beg(1))
-! call gpu_malloc_all(i_beg_d, st_size_i_beg, gpu_stream)
-! call cpy_htod(c_loc(i_beg),i_beg_d,st_size_i_beg, gpu_stream)
-
-! size_i_end=size(i_end,1)
-! st_size_i_end=size_i_end*sizeof(i_end(1))
-! call cpy_htod(c_loc(i_end),i_end_d,st_size_i_end, gpu_stream)
-! call cpy_htod(c_loc(i_end),i_end_d,st_size_i_end, gpu_stream)
-  
-! size_global_scaling=size(global_scaling,1)
-! st_size_global_scaling=size_global_scaling*sizeof(global_scaling(1))
-! call gpu_malloc_all(global_scaling_d, st_size_global_scaling, gpu_stream)
-! call cpy_htod(c_loc(global_scaling), global_scaling_d, st_size_global_scaling, gpu_stream)
-
-  
-! allocate(new_mask(1:n_atom_pairs,1:n_species))
-! new_mask= logical( .false., kind=c_bool ) !.false.
-! do i_sp=1,n_species
-!   do j=1,n_atom_pairs
-!     if(mask(j,i_sp)) then
-!       new_mask(j,i_sp)= logical( .true., kind=c_bool ) !.true.
-!     endif
-!   enddo
-! enddo
-! st_mask_d= n_atom_pairs*n_species*sizeof(new_mask(1,1))
-! call gpu_malloc_all(mask_d, st_mask_d, gpu_stream)
-! call cpy_htod(c_loc(new_mask), mask_d, st_mask_d, gpu_stream)
-
-
-! size_atom_sigma_r=size(atom_sigma_r,1)
-! st_size_atom_sigma_r=size_atom_sigma_r*sizeof(atom_sigma_r(1))
-! call gpu_malloc_all(atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
-! call cpy_htod(c_loc(atom_sigma_r),atom_sigma_r_d,st_size_atom_sigma_r, gpu_stream)
-
-! size_1_W=size(W,1)
-! size_2_W=size(W,2)
-! st_size_W=size_1_W*size_2_W*sizeof(W(1,1))
-! call gpu_malloc_all(W_d,st_size_W, gpu_stream)
-! call cpy_htod(c_loc(W),W_d,st_size_W, gpu_stream)
-
-!  size_1_S=size(S,1)
-!  size_2_S=size(S,2)
-!  st_size_S=size_1_S*size_2_S*sizeof(S(1,1))
-!  call gpu_malloc_all(S_d,st_size_S, gpu_stream)
-!  call cpy_htod(c_loc(S),S_d,st_size_S, gpu_stream)
-  !  write(*,*) "RoRo ",global_scaling(:), rcut_hard(:)
   if( do_timing )then
     call cpu_time(time2)
     radial_time = time2 - time1
     time1 = time2
   end if
-!  stop
-  
-  
-  !   call gpu_malloc_all(rjs_d,st_n_atom_pairs_double, gpu_stream)
-  !   call cpy_htod(c_loc(rjs),rjs_d, st_n_atom_pairs_double,gpu_stream)
-  
+
   call gpu_malloc_all(phis_d,st_n_atom_pairs_double, gpu_stream)
   call cpy_htod(c_loc(phis),phis_d, st_n_atom_pairs_double, gpu_stream) 
   call gpu_malloc_all(thetas_d,st_n_atom_pairs_double, gpu_stream)
@@ -720,16 +554,6 @@ module soap_turbo_desc
      call gpu_malloc_all(angular_exp_coeff_pol_der_d,st_ang_exp_coeff_rad_der,gpu_stream)
   end if
   
-! size_atom_sigma_t=size(atom_sigma_t,1)
-! st_size_atom_sigma_t=size_atom_sigma_t*sizeof(atom_sigma_t(1))
-! call gpu_malloc_all(atom_sigma_t_d,st_size_atom_sigma_t,gpu_stream)
-! call cpy_htod(c_loc(atom_sigma_t),atom_sigma_t_d,st_size_atom_sigma_t, gpu_stream)
-  
-! size_atom_sigma_t_scaling=size(atom_sigma_t_scaling,1)
-! st_size_atom_sigma_t_scaling=size_atom_sigma_t_scaling*sizeof(atom_sigma_t_scaling(1))
-! call gpu_malloc_all(atom_sigma_t_scaling_d,st_size_atom_sigma_t_scaling,gpu_stream)
-! call cpy_htod(c_loc(atom_sigma_t_scaling),atom_sigma_t_scaling_d, & 
-!                                              st_size_atom_sigma_t, gpu_stream)
 
   call gpu_get_radial_exp_coeff_poly3gauss(radial_exp_coeff_d, radial_exp_coeff_der_d, &
                                 i_beg_d, i_end_d, &
@@ -739,75 +563,71 @@ module soap_turbo_desc
                                 rcut_hard_d, &
                                 k2_i_site_d, k2_start_d, &
                                 gpu_stream)
-! For the angular expansion the masking works differently, since we do not have a species-augmented basis as in the
-! radial expansion part.
-! call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_t, atom_sigma_t_scaling, &
-  call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, &
-                                          rcut_max, l_max, eimphi, preflm, plm_array, prefl, prefm, &
-                                          fact_array, mask, n_species, eimphi_rad_der, &
-                                          do_derivatives, prefl_rad_der, angular_exp_coeff, angular_exp_coeff_rad_der, &
-                                          angular_exp_coeff_azi_der, angular_exp_coeff_pol_der, &
-                                          angular_exp_coeff_d, angular_exp_coeff_rad_der_d, &
-                                          angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, n_atom_pairs, &
-                                          thetas_d, preflm_d, rjs_d, phis_d, mask_d,  &
-                                          atom_sigma_t_d, atom_sigma_t_scaling_d,gpu_stream)
+
+  ! For the angular expansion the masking works differently, since we do not have a species-augmented basis as in the
+  ! radial expansion part.
+  ! call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_t, atom_sigma_t_scaling, &
+
+  ! call get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, &
+  !                                         rcut_max, l_max, eimphi, preflm, plm_array, prefl, prefm, &
+  !                                         fact_array, mask, n_species, eimphi_rad_der, &
+  !                                         do_derivatives, prefl_rad_der, angular_exp_coeff, angular_exp_coeff_rad_der, &
+  !                                         angular_exp_coeff_azi_der, angular_exp_coeff_pol_der, &
+  !                                         angular_exp_coeff_d, angular_exp_coeff_rad_der_d, &
+  !                                         angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, n_atom_pairs, &
+  !                                         thetas_d, preflm_d, rjs_d, phis_d, mask_d,  &
+  !                                         atom_sigma_t_d, atom_sigma_t_scaling_d,gpu_stream)
+
+
+  call get_angular_expansion_coefficients(&
+         l_max,                 &  
+         n_atom_pairs,         &
+         n_species,            &
+         do_derivatives,       &
+         rcut_max,                 &
+         atom_sigma_t_d,      &
+         atom_sigma_t_scaling_d, &
+         angular_exp_coeff_azi_der_d,  &
+         angular_exp_coeff_d,          &
+         angular_exp_coeff_pol_der_d,  &
+         angular_exp_coeff_rad_der_d,  &
+         mask_d,               &
+         phis_d,               &
+         preflm_d,             &
+         rjs_d,                &
+         thetas_d,             &
+         gpu_stream)
+
   if( do_timing )then
     call cpu_time(time2)
     angular_time = time2 - time1
   end if
-!  write(*,"(f8.3, 1X, A)") time2-time1, "seconds"
-
-! 14 s
-!  call cpu_time(ttt(1)
-
-!! For debugging (only gfortran)
-!  if( .false. )then
-!    write(*,*) "# Gaussian centered at ", rjs(4)
-!    write(*,"(A)",advance="no") "rho(x) = "
-!    do i = 1, alpha_max
-!      write(*,"(A,I0,A,E16.8,A)",advance="no") "p", i, "(x) *", radial_exp_coeff(i,4), "+"
-!    end do
-!    write(*,*) "0."
-!  end if
 
 
-
-
-!  write(*,*) "Obtaining full expansion coefficients..."
-!  write(*,*)
   if( do_timing )then
     call cpu_time(time1)
   end if
  
   
-  
   st_cnk=k_max*n_max*n_sites*sizeof(cnk(1,1,1))
 
-  call gpu_malloc_all(cnk_d,st_cnk,gpu_stream) ! call gpu_malloc_double_complex(cnk_d, k_max*n_max*n_sites)
+  call gpu_malloc_all(cnk_d,st_cnk,gpu_stream) 
    
   
-
-! call gpu_malloc_all(n_neigh_d,st_n_sites_int,gpu_stream)
-! call cpy_htod(c_loc(n_neigh),n_neigh_d, st_n_sites_int,gpu_stream)
-
   size_1_species=size(species,1)
   size_2_species=size(species,2)
   st_size_species=size_1_species*size_2_species*sizeof(species(1,1))
+
   call gpu_malloc_all(species_d, st_size_species,gpu_stream)
   call cpy_htod(c_loc(species),species_d,st_size_species, gpu_stream)
 
   size_species_multiplicity=size(species_multiplicity,1)
   st_size_species_multiplicity=size_species_multiplicity*sizeof(species_multiplicity(1))
+
   call gpu_malloc_all(species_multiplicity_d,st_size_species_multiplicity,gpu_stream)
   call cpy_htod(c_loc(species_multiplicity), species_multiplicity_d, &
                                      st_size_species_multiplicity,gpu_stream)
   
-! size_central_weight=size(central_weight,1)
-! st_size_central_weight= size_central_weight*sizeof(central_weight(1))
-! call gpu_malloc_all(central_weight_d,st_size_central_weight,gpu_stream)
-! call cpy_htod(c_loc(central_weight),central_weight_d,st_size_central_weight, gpu_stream)
-
-
   call gpu_get_cnk(radial_exp_coeff_d, angular_exp_coeff_d, &
                              cnk_d, &
                              n_neigh_d, k2_start_d, &
@@ -819,15 +639,13 @@ module soap_turbo_desc
                              W_d, S_d, size_1_species, gpu_stream)
 
 
-    !call cpy_htod(c_loc(soap), soap_d, st_soap, gpu_stream)
-  call gpu_memset_async(soap_d, 0, st_soap, gpu_stream)
-! 12.6 s
-  !call cpu_time(ttt(1)) 
-  ! ttt(1)=MPI_Wtime()
 
+  call gpu_memset_async(soap_d, 0, st_soap, gpu_stream)
+
+
+  
 ! Do derivatives
   if( do_derivatives )then
-
 
      pi = dacos(-1.d0)
 
@@ -835,9 +653,6 @@ module soap_turbo_desc
      call gpu_malloc_all(cnk_rad_der_d,st_cnk_rap_der,gpu_stream)
      call gpu_malloc_all(cnk_azi_der_d,st_cnk_rap_der,gpu_stream)
      call gpu_malloc_all(cnk_pol_der_d,st_cnk_rap_der,gpu_stream)
-     ! call gpu_malloc_double_complex(cnk_rad_der_d,k_max*n_max*n_atom_pairs)
-     ! call gpu_malloc_double_complex(cnk_azi_der_d,k_max*n_max*n_atom_pairs)
-     ! call gpu_malloc_double_complex(cnk_pol_der_d,k_max*n_max*n_atom_pairs)
 
      call gpu_get_derivatives(radial_exp_coeff_d, angular_exp_coeff_d, radial_exp_coeff_der_d, &
           angular_exp_coeff_rad_der_d, angular_exp_coeff_azi_der_d, angular_exp_coeff_pol_der_d, &
@@ -846,7 +661,6 @@ module soap_turbo_desc
           rcut_max, &
           n_atom_pairs, n_sites,  n_soap, k_max, n_max, l_max, gpu_stream) 
 
-
   end if
 
   if( do_timing )then
@@ -854,14 +668,7 @@ module soap_turbo_desc
     coeff_time = time2 - time1
   end if
 
-  ! call gpu_device_sync()
-  ! tt_misca(1)=MPI_Wtime()
-
-
-! 7.5 s 
-
-!  write(*,*) "Building SOAP vectors..."
-
+  
   if( do_timing )then
     call cpu_time(time1)
   end if
@@ -907,6 +714,7 @@ module soap_turbo_desc
    n_multiplicity=size(multiplicity_array,1)
    st_n_multiplicity_double=n_multiplicity*sizeof(multiplicity_array(1))
    st_multiplicity_array_d = st_n_multiplicity_double
+
    call gpu_malloc_all(multiplicity_array_d, st_n_multiplicity_double,gpu_stream)
    call cpy_htod(c_loc( multiplicity_array), multiplicity_array_d, st_n_multiplicity_double, gpu_stream)
      
@@ -917,11 +725,9 @@ module soap_turbo_desc
   call gpu_malloc_all(sqrt_dot_p_d, st_n_sites_double,gpu_stream)
   call gpu_malloc_all(skip_soap_component_d, st_skip_component,gpu_stream)
   call cpy_htod(c_loc(skip_soap_component), skip_soap_component_d, st_skip_component,gpu_stream)
+
   
-  
-  ! call gpu_device_sync()
-  ! tt_misca(2)=MPI_Wtime() 
-  ! time_misca=time_misca+tt_misca(2)-tt_misca(1)
+
   call gpu_get_sqrt_dot_p(sqrt_dot_p_d, soap_d, multiplicity_array_d, &
                                     cnk_d, skip_soap_component_d,  &
                                     n_sites, n_soap, n_max,l_max, gpu_stream)
@@ -935,14 +741,12 @@ module soap_turbo_desc
      ! call cpu_time(time1)
      !****************************
 
-
      allocate(k3_index(1:n_atom_pairs))
      allocate(i_k2_start(1:n_sites))
      
      k2 = 0
      maxneigh=0
      do i = 1, n_sites
-        ! maxneigh=maxneigh+n_neigh(i)
         if(n_neigh(i)>maxneigh) maxneigh=n_neigh(i)
         do j = 1, n_neigh(i)
            k2 = k2 + 1
@@ -968,13 +772,6 @@ module soap_turbo_desc
      call gpu_malloc_all(soap_azi_der_d, st_soap_rap_der,gpu_stream)
      call gpu_malloc_all(soap_pol_der_d, st_soap_rap_der,gpu_stream)
 
-     ! call cpy_htod(c_loc(soap_rad_der),soap_rad_der_d, st_soap_rap_der)
-     ! call cpy_htod(c_loc(soap_azi_der),soap_azi_der_d, st_soap_rap_der)
-     ! call cpy_htod(c_loc(soap_pol_der),soap_pol_der_d, st_soap_rap_der)
-
-     !    write(*,*) ' befroe gpu_get_soap_der '
-     ! call gpu_device_sync()
-     ! stop
 
      call gpu_get_soap_der(soap_d, sqrt_dot_p_d, soap_cart_der_d, &
           soap_rad_der_d, soap_azi_der_d, soap_pol_der_d, &
@@ -990,7 +787,6 @@ module soap_turbo_desc
   end if
 ! Now we normalize the soap vectors:
   call gpu_soap_normalize(soap_d, sqrt_dot_p_d, n_soap, n_sites, gpu_stream)
-  !call cpy_dtoh(soap_d, c_loc(soap), st_soap)
 
 
 ! This is for debugging
@@ -1035,63 +831,42 @@ module soap_turbo_desc
   stop
 
   end if
-!  call cpu_time(time2)
-!  write(*,"(f8.3, 1X, A)") time2-time1, "seconds"
 
-
-  deallocate( eimphi, preflm, plm_array, prefl, prefm, fact_array, radial_exp_coeff, angular_exp_coeff, cnk, &
-              i_beg, i_end, do_central, sqrt_dot_p, k2_i_site)
+  deallocate( eimphi, & 
+       preflm, & ! deallocate
+       plm_array, & ! deallocate
+       prefl, & ! deallocate
+       prefm, & ! deallocate
+       fact_array, & ! deallocate
+       radial_exp_coeff, & ! deallocate
+       angular_exp_coeff, & ! deallocate
+       cnk, & ! deallocate &
+       i_beg, & ! deallocate
+       i_end, & ! deallocate
+       do_central, & ! deallocate
+       sqrt_dot_p, & ! deallocate
+       k2_i_site, & ! deallocate
+       skip_soap_component, & ! deallocate
+       k_idx, & ! deallocate
+       k2_start)
 
 
   
   if( do_derivatives )then
-
-     !  write(*,*) ' is radial_exp_coeff_der allocated b4 dealloc? '
-     !  write(*,*) allocated(radial_exp_coeff_der)
-
-     !  write(*,*) ' is angular_exp_coeff_rad_der allocated b4 dealloc? '
-     !  write(*,*) allocated(angular_exp_coeff_rad_der)
-
-     !  write(*,*) ' is soap_rad_der allocated b4 dealloc? '
-     !  write(*,*) allocated(soap_rad_der)
-
-     !  write(*,*) ' is soap_azi_der allocated b4 dealloc? '
-     !  write(*,*) allocated(soap_azi_der)
-
-     !  write(*,*) ' is soap_pol_der allocated b4 dealloc? '
-     !  write(*,*) allocated(soap_pol_der)
-
-     !  write(*,*) ' is cnk_rad_der allocated b4 dealloc? '
-     !  write(*,*) allocated(cnk_rad_der)
-
-     !  write(*,*) ' is cnk_azi_der allocated b4 dealloc? '
-     !  write(*,*) allocated(cnk_azi_der)
-
-     !  write(*,*) ' is cnk_pol_der allocated b4 dealloc? '
-     !  write(*,*) allocated(cnk_pol_der)
-
-     !  write(*,*) ' is eimphi_rad_der allocated b4 dealloc? '
-     !  write(*,*) allocated(eimphi_rad_der)
-
-     !  write(*,*) ' is angular_exp_coeff_azi_der allocated b4 dealloc? '
-     !  write(*,*) allocated(angular_exp_coeff_azi_der)
-
-     !  write(*,*) ' is prefl_rad_der allocated b4 dealloc? '
-     !  write(*,*) allocated(prefl_rad_der)
-
-     !  write(*,*) ' is angular_exp_coeff_pol_der allocated b4 dealloc? '
-     !  write(*,*) allocated(angular_exp_coeff_pol_der)
-
-     !  write(*,*) ' is k3_index allocated b4 dealloc? '
-     !  write(*,*) allocated(k3_index)
-
-     !  write(*,*) ' deallocating from here and gpu '
-     ! call gpu_device_sync()
-     ! stop
-
-     deallocate( radial_exp_coeff_der, angular_exp_coeff_rad_der, soap_rad_der, soap_azi_der, soap_pol_der, &
-          cnk_rad_der, cnk_azi_der, cnk_pol_der, eimphi_rad_der, angular_exp_coeff_azi_der, &
-          prefl_rad_der, angular_exp_coeff_pol_der,k3_index)
+     deallocate( radial_exp_coeff_der, & ! deallocate
+          angular_exp_coeff_rad_der, & ! deallocate
+          soap_rad_der, & ! deallocate
+          soap_azi_der, & ! deallocate
+          soap_pol_der, & ! deallocate
+          cnk_rad_der, & ! deallocate
+          cnk_azi_der, & ! deallocate
+          cnk_pol_der, & ! deallocate
+          eimphi_rad_der, & ! deallocate
+          angular_exp_coeff_azi_der, & ! deallocate
+          prefl_rad_der, & ! deallocate
+          angular_exp_coeff_pol_der, & ! deallocate
+          k3_index, & ! deallocate
+          i_k2_start) ! deallocate
 
 
      call gpu_free_async(i_k2_start_d,gpu_stream)
@@ -1104,9 +879,6 @@ module soap_turbo_desc
      call gpu_free_async(angular_exp_coeff_rad_der_d,gpu_stream)
      call gpu_free_async(angular_exp_coeff_azi_der_d,gpu_stream)
      call gpu_free_async(angular_exp_coeff_pol_der_d,gpu_stream)
-
-     ! call gpu_free_async(radial_exp_coeff_der_d, gpu_stream)
-     ! call gpu_free_async(radial_exp_coeff_der_temp_d , gpu_stream) 
 
      call gpu_free_async(cnk_rad_der_d,gpu_stream)
      call gpu_free_async(cnk_azi_der_d,gpu_stream)
@@ -1153,33 +925,22 @@ module soap_turbo_desc
   call gpu_free_async(phis_d,gpu_stream)
   call gpu_free_async(rjs_d,gpu_stream)
   call gpu_free_async(mask_d,gpu_stream)
-! call gpu_free_async(atom_sigma_t_d,gpu_stream)
-! call gpu_free_async(atom_sigma_t_scaling_d,gpu_stream)
-! call gpu_free_async(atom_sigma_r_d,gpu_stream)
   call gpu_free_async(k2_start_d,gpu_stream)
   call gpu_free_async(n_neigh_d,gpu_stream)
   call gpu_free_async(species_d,gpu_stream)
   call gpu_free_async(species_multiplicity_d,gpu_stream)
-! call gpu_free_async(rcut_hard_d,gpu_stream)
-!!!!!!!!ATTENTION: as the code is now, W_d and S_d are never free'd, only in realloc case they are freed and reallocate'd issue is due to the "save" value of W and S arrays that are needed across different calls of the same function. maybe this can be fixed when reworking the memory
-  ! call gpu_free_async(W_d,gpu_stream)
-  ! call gpu_free_async(S_d,gpu_stream)
   call gpu_free_async(k2_i_site_d,gpu_stream)
   call gpu_free_async(preflm_d,gpu_stream)
   call gpu_free_async(i_beg_d,gpu_stream)
   call gpu_free_async(i_end_d,gpu_stream)
-!  call gpu_free_async(multiplicity_array_d,gpu_stream)
   call gpu_free_async(skip_soap_component_d,gpu_stream)
   call gpu_free_async(sqrt_dot_p_d,gpu_stream)
-! call gpu_free_async(central_weight_d,gpu_stream)
-!  call gpu_free_async(global_scaling_d,gpu_stream)
-  !call gpu_free_async(cnk_d,gpu_stream)
   call gpu_free(cnk_d)
-  
-  !call cpu_time(ttt(2))
+
   ttt(2)=MPI_Wtime()
   time_get_soap=time_get_soap+ttt(2)-ttt(1)
-  !stop  
+
+    write(*,*)  "finished get soap "
   end subroutine get_soap
 !**************************************************************************
 

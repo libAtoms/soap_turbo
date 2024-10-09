@@ -377,97 +377,171 @@ module soap_turbo_angular
 !
 ! subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, atom_sigma_in, &
 !                                               atom_sigma_scaling, rcut, lmax, &
-  subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, &
-                                                rcut, lmax, &
-                                                eimphi, preflm, plm_array, prefl, prefm, fact_array, &
-                                                mask, n_species, eimphi_rad_der, do_derivatives, &
-                                                prefl_rad_der, exp_coeff, exp_coeff_rad_der, &
-                                                exp_coeff_azi_der, exp_coeff_pol_der, &
-                                                exp_coeff_d, exp_coeff_rad_der_d, &
-                                                exp_coeff_azi_der_d, exp_coeff_pol_der_d, n_atom_pairs, &
-                                                thetas_d, preflm_d, rjs_d, phis_d, mask_d, &
-                                                atom_sigma_in_d, atom_sigma_scaling_d,gpu_stream)
+!   subroutine get_angular_expansion_coefficients(n_sites, n_neigh, thetas, phis, rjs, &
+!                                                 rcut, lmax, &
+!                                                 eimphi, preflm, plm_array, prefl, prefm, fact_array, &
+!                                                 mask, n_species, eimphi_rad_der, do_derivatives, &
+!                                                 prefl_rad_der, &
+!                                                 exp_coeff_d, exp_coeff_rad_der_d, &
+!                                                 exp_coeff_azi_der_d, exp_coeff_pol_der_d, n_atom_pairs, &
+!                                                 thetas_d, preflm_d, rjs_d, phis_d, mask_d, &
+!                                                 atom_sigma_in_d, atom_sigma_scaling_d,gpu_stream)
 
+!     implicit none
+
+!     integer(c_int), intent(in) :: n_species, n_atom_pairs
+!     integer (c_int):: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp, k_int,l,m,lmpo
+! !    complex*16 :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
+! !   real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
+!     real*8 :: thetas(:), phis(:),  atom_sigma, rjs(:), x, theta, phi, rj
+!     real(c_double), intent(in) :: rcut
+!     real*8 :: amplitude
+! !   I should probably allocate and save these variables internally to minimize the number of variables that
+! !   need to be passed to this subroutine
+!     complex*16 :: eimphi(:), eimphi_rad_der(:)
+!     real*8 :: preflm(:), plm_array(:)
+!     real*8 :: prefl(0:), fact_array(:), prefl_rad_der(0:)
+!     complex*16 :: prefm(0:)
+!     logical, intent(in) :: mask(:,:)
+!     logical, intent(in) ::  do_derivatives
+!     real*8, allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
+!     real(c_double), allocatable,target :: prefl_array_global(:,:), prefl_array_global_der(:,:)
+!     real(c_double), allocatable,target :: plm_array_global(:,:), plm_array_der_global(:,:)
+!     complex*16, allocatable :: eimphi_azi_der(:)
+!     complex*16, allocatable, target  :: eimphi_global(:,:), eimphi_rad_der_global(:,:)
+!     complex*16, allocatable, target  :: tr_exp_coeff(:,:), eimphi_azi_der_global(:,:)
+!     !complex*16, allocatable, target :: tr_exp_coeff_rad_der(:,:), &
+!     !                tr_exp_coeff_azi_der(:,:), tr_exp_coeff_pol_der (:,:)
+!     type(c_ptr) :: preflm_d, prefl_array_global_d
+!     type(c_ptr) :: thetas_d, plm_array_global_d, plm_array_der_global_d,eimphi_global_d
+!     type(c_ptr) :: exp_coeff_d, exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d
+!     type(c_ptr) :: rjs_d, phis_d, mask_d
+!     type(c_ptr) ::  atom_sigma_in_d, atom_sigma_scaling_d
+!     logical(c_bool) :: c_do_derivatives
+!     type(c_ptr) :: eimphi_rad_der_global_d, eimphi_azi_der_global_d
+!     type(c_ptr) :: prefl_array_global_der_d
+!     real(c_double), allocatable, target :: plm_array_div_sin_global(:,:), plm_array_der_mul_sin_global(:,:)
+!     type(c_ptr) :: plm_array_div_sin_d, plm_array_der_mul_sin_d
+!     integer(c_size_t) :: st_prefl_array_global, st_plm_array_global,  st_eimphi_global, st_plm_array_der_global
+!     type(c_ptr), intent(inout) :: gpu_stream
+
+
+
+    subroutine get_angular_expansion_coefficients(&
+         lmax,                 &  
+         n_atom_pairs,         &
+         n_species,            &
+         do_derivatives,       &
+         rcut,                 &
+         atom_sigma_in_d,      &
+         atom_sigma_scaling_d, &
+         exp_coeff_azi_der_d,  &
+         exp_coeff_d,          &
+         exp_coeff_pol_der_d,  &
+         exp_coeff_rad_der_d,  &
+         mask_d,               &
+         phis_d,               &
+         preflm_d,             &
+         rjs_d,                &
+         thetas_d,             &
+         gpu_stream)
+
+    
     implicit none
+    
+    ! Input variables 
+    integer, intent(in) :: lmax
+    integer, intent(in) :: n_atom_pairs
+    integer, intent(in) :: n_species
 
-    integer(c_int), intent(in) :: n_species, n_atom_pairs
-    integer (c_int):: lmax, kmax, n_neigh(:), n_sites, i, j, k, kmax_der, i_sp, k_int,l,m,lmpo
-    complex*16, intent(out), target :: exp_coeff(:,:), exp_coeff_rad_der(:,:), exp_coeff_azi_der(:,:), exp_coeff_pol_der(:,:)
-!   real*8 :: thetas(:), phis(:), atom_sigma_in(:), atom_sigma, atom_sigma_scaling(:), rjs(:), x, theta, phi, rj
-    real*8 :: thetas(:), phis(:),  atom_sigma, rjs(:), x, theta, phi, rj
-    real(c_double), intent(in) :: rcut
-    real*8 :: amplitude
-!   I should probably allocate and save these variables internally to minimize the number of variables that
-!   need to be passed to this subroutine
-    complex*16 :: eimphi(:), eimphi_rad_der(:)
-    real*8 :: preflm(:), plm_array(:)
-    real*8 :: prefl(0:), fact_array(:), prefl_rad_der(0:)
-    complex*16 :: prefm(0:)
-    logical, intent(in) :: mask(:,:)
-    logical, intent(in) ::  do_derivatives
-    real*8, allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
-    real(c_double), allocatable,target :: prefl_array_global(:,:), prefl_array_global_der(:,:)
-    real(c_double), allocatable,target :: plm_array_global(:,:), plm_array_der_global(:,:)
-    complex*16, allocatable :: eimphi_azi_der(:)
-    complex*16, allocatable, target  :: eimphi_global(:,:), eimphi_rad_der_global(:,:)
-    complex*16, allocatable, target  :: tr_exp_coeff(:,:), eimphi_azi_der_global(:,:)
-    !complex*16, allocatable, target :: tr_exp_coeff_rad_der(:,:), &
-    !                tr_exp_coeff_azi_der(:,:), tr_exp_coeff_pol_der (:,:)
-    type(c_ptr) :: preflm_d, prefl_array_global_d
-    type(c_ptr) :: thetas_d, plm_array_global_d, plm_array_der_global_d,eimphi_global_d
-    type(c_ptr) :: exp_coeff_d, exp_coeff_rad_der_d, exp_coeff_azi_der_d, exp_coeff_pol_der_d
-    type(c_ptr) :: rjs_d, phis_d, mask_d
-    type(c_ptr) ::  atom_sigma_in_d, atom_sigma_scaling_d
+    logical, intent(in) :: do_derivatives
+
+    real*8, intent(in) :: rcut
+    
+    ! Internal variables
+    integer :: kmax
+    integer :: kmax_der
+    integer :: lmpo
+    complex*16 :: c
     logical(c_bool) :: c_do_derivatives
-    type(c_ptr) :: eimphi_rad_der_global_d, eimphi_azi_der_global_d
-    type(c_ptr) :: prefl_array_global_der_d
-    real(c_double), allocatable, target :: plm_array_div_sin_global(:,:), plm_array_der_mul_sin_global(:,:)
-    type(c_ptr) :: plm_array_div_sin_d, plm_array_der_mul_sin_d
-    integer(c_size_t) :: st_prefl_array_global, st_plm_array_global,  st_eimphi_global, st_plm_array_der_global
+
+    ! Input GPU pointers
+    type(c_ptr), intent(inout) :: atom_sigma_in_d
+    type(c_ptr), intent(inout) :: atom_sigma_scaling_d
+    type(c_ptr), intent(inout) :: exp_coeff_azi_der_d
+    type(c_ptr), intent(inout) :: exp_coeff_d
+    type(c_ptr), intent(inout) :: exp_coeff_pol_der_d
+    type(c_ptr), intent(inout) :: exp_coeff_rad_der_d
+    type(c_ptr), intent(inout) :: mask_d
+    type(c_ptr), intent(inout) :: phis_d
+    type(c_ptr), intent(inout) :: preflm_d
+    type(c_ptr), intent(inout) :: rjs_d
+    type(c_ptr), intent(inout) :: thetas_d
     type(c_ptr), intent(inout) :: gpu_stream
 
+    ! Internal GPU pointers 
+    type(c_ptr) :: eimphi_azi_der_global_d
+    type(c_ptr) :: eimphi_global_d
+    type(c_ptr) :: eimphi_rad_der_global_d
+    type(c_ptr) :: plm_array_der_global_d
+    type(c_ptr) :: plm_array_der_mul_sin_d
+    type(c_ptr) :: plm_array_div_sin_d
+    type(c_ptr) :: plm_array_global_d
+    type(c_ptr) :: prefl_array_global_d
+    type(c_ptr) :: prefl_array_global_der_d
+
+    
+    ! Internal GPU sizes
+    integer(c_size_t) :: st_eimphi_global
+    integer(c_size_t) :: st_plm_array_der_global
+    integer(c_size_t) :: st_plm_array_global
+    integer(c_size_t) :: st_prefl_array_global
+
+
+    print *, "start ang coeff"
     
     c_do_derivatives=logical( .false., kind=c_bool ) 
     if(do_derivatives) then 
-    c_do_derivatives=logical( .true., kind=c_bool )
+       c_do_derivatives=logical( .true., kind=c_bool )
     endif
 
     kmax = 1 + lmax*(lmax+1)/2 + lmax
-
-    exp_coeff = 0.d0
+ 
+    !    exp_coeff = 0.d0
     if( do_derivatives )then
       kmax_der = 1 + (lmax+1)*(lmax+2)/2 + lmax+1
     end if
     
     st_prefl_array_global= (lmax+1)*n_atom_pairs*sizeof(rcut) !c_double !sizeof(rcut)
     st_plm_array_global= kmax*n_atom_pairs*sizeof(rcut) !c_double !sizeof(rcut)
-    st_eimphi_global = kmax*n_atom_pairs*sizeof(exp_coeff(1,1)) !c_double_complex !sizeof(exp_coeff(1,1))
-    call gpu_malloc_all(prefl_array_global_d, st_prefl_array_global,gpu_stream) ! call gpu_malloc_double(prefl_array_global_d, (lmax+1)*n_atom_pairs)
-    call gpu_malloc_all(plm_array_global_d, st_plm_array_global,gpu_stream) ! call gpu_malloc_double(plm_array_global_d, kmax*n_atom_pairs)
-    call gpu_malloc_all(eimphi_global_d, st_eimphi_global,gpu_stream) !call gpu_malloc_double_complex(eimphi_global_d, kmax*n_atom_pairs)
+    st_eimphi_global = kmax*n_atom_pairs * sizeof(c) !c_double_complex !sizeof(exp_coeff(1,1))
+    
+    call gpu_malloc_all(prefl_array_global_d, st_prefl_array_global,gpu_stream) 
+    call gpu_malloc_all(plm_array_global_d, st_plm_array_global,gpu_stream) 
+    call gpu_malloc_all(eimphi_global_d, st_eimphi_global,gpu_stream)
 
     if(do_derivatives) then
-    call gpu_malloc_all(prefl_array_global_der_d, st_prefl_array_global,gpu_stream) !call gpu_malloc_double(prefl_array_global_der_d, (lmax+1)*n_atom_pairs)
+       call gpu_malloc_all(prefl_array_global_der_d, st_prefl_array_global,gpu_stream) 
 
-    call gpu_malloc_all(eimphi_rad_der_global_d, st_eimphi_global ,gpu_stream) ! call gpu_malloc_double_complex(eimphi_rad_der_global_d, kmax*n_atom_pairs)
-    call gpu_malloc_all(eimphi_azi_der_global_d, st_eimphi_global,gpu_stream) ! call gpu_malloc_double_complex(eimphi_azi_der_global_d, kmax*n_atom_pairs)
+       call gpu_malloc_all(eimphi_rad_der_global_d, st_eimphi_global ,gpu_stream) 
+       call gpu_malloc_all(eimphi_azi_der_global_d, st_eimphi_global,gpu_stream) 
     
-    call gpu_malloc_all(plm_array_div_sin_d, st_plm_array_global,gpu_stream) !call gpu_malloc_double(plm_array_div_sin_d, kmax*n_atom_pairs)
-    call gpu_malloc_all(plm_array_der_mul_sin_d, st_plm_array_global,gpu_stream) !call gpu_malloc_double(plm_array_der_mul_sin_d, kmax*n_atom_pairs)
+       call gpu_malloc_all(plm_array_div_sin_d, st_plm_array_global,gpu_stream) 
+       call gpu_malloc_all(plm_array_der_mul_sin_d, st_plm_array_global,gpu_stream) 
 
     endif
 
-    call  gpu_get_plm_array_global(plm_array_global_d, n_atom_pairs, kmax, &
-                              lmax, thetas_d, gpu_stream) 
+    call gpu_get_plm_array_global(plm_array_global_d, n_atom_pairs, kmax, &
+              lmax, thetas_d, gpu_stream) 
     
     
     if(do_derivatives) then
-    lmpo=lmax+1 
-    st_plm_array_der_global= kmax_der*n_atom_pairs*sizeof(rcut)
-    call gpu_malloc_all(plm_array_der_global_d, st_plm_array_der_global, gpu_stream) !call gpu_malloc_double(plm_array_der_global_d, kmax_der*n_atom_pairs)
-    call gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
-                              lmpo, thetas_d, gpu_stream )
-    
+       lmpo=lmax+1 
+       st_plm_array_der_global= kmax_der*n_atom_pairs*sizeof(rcut)
+       call gpu_malloc_all(plm_array_der_global_d, st_plm_array_der_global, gpu_stream) 
+       call gpu_get_plm_array_global(plm_array_der_global_d, n_atom_pairs, kmax_der, &
+            lmpo, thetas_d, gpu_stream )
+
     endif
 
     call gpu_get_exp_coeff_array(eimphi_global_d, &
@@ -493,11 +567,14 @@ module soap_turbo_angular
       call gpu_free_async(prefl_array_global_der_d,gpu_stream)
       call gpu_free_async(eimphi_azi_der_global_d,gpu_stream)
       call gpu_free_async(eimphi_rad_der_global_d,gpu_stream)
-    end if
+   end if
+   
     call gpu_free_async(plm_array_global_d,gpu_stream)
     call gpu_free_async(eimphi_global_d,gpu_stream)
     call gpu_free_async(prefl_array_global_d,gpu_stream)
-  return
+
+    print *, "Finished ang coeff"
+    return 
   end subroutine get_angular_expansion_coefficients
 !**************************************************************************
 
