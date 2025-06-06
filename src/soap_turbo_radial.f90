@@ -90,7 +90,7 @@ module soap_turbo_radial
 !   (alpha_max, n_atom_pairs)
     real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
-    logical, save :: print_basis = .false., print_message = .true.
+    logical, save :: print_basis = .false., print_message = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
@@ -421,7 +421,7 @@ module soap_turbo_radial
 !   (n_sites, n_neigh_max, alpha_max)
     real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
     real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
-    logical, save :: print_basis = .false., print_message = .true.
+    logical, save :: print_basis = .false., print_message = .false.
     real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
