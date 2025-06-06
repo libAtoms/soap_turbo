@@ -26,7 +26,6 @@
 module soap_turbo_desc
 
   use soap_turbo_radial
-  use soap_turbo_radial_op
   use soap_turbo_angular
 
   contains
