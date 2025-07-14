@@ -1399,8 +1399,8 @@ module soap_turbo_radial
         allocate( I0_array(1:nn, 1:alpha_max + 4, 1:3) )
         allocate( g_aux_left_array(1:nn, 1:alpha_max, 1:2) )
         allocate( g_aux_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
-        allocate( M_left_array(1:nn, 1:alpha_max, 1:2) )
-        allocate( M_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
+        allocate( M_left_array(1:nn, 1:4, 1:2) )
+        allocate( M_right_array(1:nn, 1:4, 2:3) ) ! note the 2:3 bounds here
         allocate( I_left_array(1:nn, 1:alpha_max) )
         allocate( I_right_array(1:nn, 1:alpha_max) )
         allocate( exp_coeff_soft_array(1:nn, 1:alpha_max) )
@@ -1412,8 +1412,8 @@ module soap_turbo_radial
         if( do_derivatives )then
           allocate( g_aux_left_der_array(1:nn, 1:alpha_max, 1:2) )
           allocate( g_aux_right_der_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
-          allocate( M_left_der_array(1:nn, 1:alpha_max, 1:2) )
-          allocate( M_right_der_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
+          allocate( M_left_der_array(1:nn, 1:4, 1:2) )
+          allocate( M_right_der_array(1:nn, 1:4, 2:3) ) ! note the 2:3 bounds here
           allocate( I_left_der_array(1:nn, 1:alpha_max) )
           allocate( I_right_der_array(1:nn, 1:alpha_max) )
           allocate( exp_coeff_soft_der_array(1:nn, 1:alpha_max) )
@@ -1620,8 +1620,8 @@ module soap_turbo_radial
         allocate( I0_array(1:nn, 1:max(7, alpha_max + 4), 1:3) )
         allocate( g_aux_left_array(1:nn, 1:alpha_max, 1:2) )
         allocate( g_aux_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
-        allocate( M_left_array(1:nn, 1:alpha_max, 1:2) )
-        allocate( M_right_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
+        allocate( M_left_array(1:nn, 1:7, 1:2) )
+        allocate( M_right_array(1:nn, 1:7, 2:3) ) ! note the 2:3 bounds here
         allocate( I_left_array(1:nn, 1:alpha_max) )
         allocate( I_right_array(1:nn, 1:alpha_max) )
 !        allocate( exp_coeff_soft_array(1:nn, 1:alpha_max) )
@@ -1632,8 +1632,8 @@ module soap_turbo_radial
 
         if( do_derivatives )then
           allocate( B_der(1:7, 1:nn) )
-          allocate( M_left_der_array(1:nn, 1:alpha_max, 1:2) )
-          allocate( M_right_der_array(1:nn, 1:alpha_max, 2:3) ) ! note the 2:3 bounds here
+          allocate( M_left_der_array(1:nn, 1:7, 1:2) )
+          allocate( M_right_der_array(1:nn, 1:7, 2:3) ) ! note the 2:3 bounds here
           allocate( I_left_der_array(1:nn, 1:alpha_max) )
           allocate( I_right_der_array(1:nn, 1:alpha_max) )
           allocate( exp_coeff_buffer_der_array(1:nn, 1:alpha_max) )
