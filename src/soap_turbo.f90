@@ -213,7 +213,7 @@ module soap_turbo_desc
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
-  else if( any( alpha_max /= alpha_max_prev ) )then
+  else if( any( rcut_hard /= rcut_hard_prev ) )then
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
