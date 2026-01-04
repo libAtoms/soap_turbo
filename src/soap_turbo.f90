@@ -474,7 +474,7 @@ module soap_turbo_desc
   end if
 
 ! Create the multiplicity array
-  if( alpha_max_prev /= alpha_max .or. l_max_prev /= l_max )then
+  if( any( alpha_max_prev /= alpha_max ) .or. l_max_prev /= l_max )then
     recompute_multiplicity_array = .true.
   end if
   l_max_prev = l_max
