@@ -181,7 +181,7 @@ module soap_turbo_desc
     deallocate( alpha_max_prev )
     allocate( alpha_max_prev(1:size(alpha_max)) )
     recompute_basis = .true.
-  else if( alpha_max /= alpha_max_prev )then
+  else if( any( alpha_max /= alpha_max_prev ) )then
     recompute_basis = .true.
   end if
 ! Check for changes in atom_sigma_r: recompute basis only for poly3gauss
@@ -196,7 +196,7 @@ module soap_turbo_desc
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
-  else if( atom_sigma_r /= atom_sigma_r_prev )then
+  else if( any( atom_sigma_r /= atom_sigma_r_prev ) )then
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
@@ -213,7 +213,7 @@ module soap_turbo_desc
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
-  else if( alpha_max /= alpha_max_prev )then
+  else if( any( alpha_max /= alpha_max_prev ) )then
     if( basis == "poly3gauss" )then
       recompute_basis = .true.
     end if
