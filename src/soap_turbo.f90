@@ -68,7 +68,7 @@ module soap_turbo_desc
   complex*16, allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
   complex*16, allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
 
-  real*8, allocatable, save :: W(:,:), S(:,:), multiplicity_array(:)
+  real*8, allocatable, save :: W(:,:), S(:,:), multiplicity_array(:), atom_sigma_r_prev(:), rcut_hard_prev(:)
   real*8, allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
   real*8, allocatable :: W_temp(:,:), S_temp(:,:)
   real*8, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
@@ -80,12 +80,14 @@ module soap_turbo_desc
             memory_time, basis_time
 
   integer, allocatable :: i_beg(:), i_end(:)
+  integer, allocatable, save :: alpha_max_prev(:)
   integer, save :: n_max_prev, l_max_prev
   integer :: k_max, n_max
   integer :: i, counter, j, k, n_soap, k2, k3, n, l, m, np, counter2, n_soap_uncompressed
   logical, allocatable :: do_central(:), skip_soap_component(:,:,:), skip_soap_component_flattened(:)
   logical, allocatable, save :: skip_soap_component_flattened_prev(:)
   logical, save :: recompute_basis = .true., recompute_multiplicity_array = .true.
+  character*64, save :: basis_prev = "None"
 !-------------------
 
   if( do_timing )then
@@ -160,10 +162,68 @@ module soap_turbo_desc
   do i = 1, n_species
     n_max = n_max + alpha_max(i)
   end do
-  if( n_max_prev /= n_max )then
+! In many cases the basis does not need to be recomputed, however if the basis definition
+! changes, the matrices that relate the primitive (polynomial) basis to the orthonormal
+! basis need to be recomputed. For the purely polynomial bases (poly3, poly3tab and
+! poly3operator), only the number of basis functions matters. For the Gaussian augmented
+! basis (poly3gauss), the basis depends also on the atom_sigma_r and rcut_hard values
+!
+! Trivial
+  if( trim(adjustl(basis)) /= trim(adjustl(basis_prev)) )then
+    recompute_basis = .true.
+    basis_prev = trim(adjustl(basis))
+  end if
+! Check for changes in number of basis functions: recompute basis for all basis types
+  if( .not. allocated(alpha_max_prev) )then
+    allocate( alpha_max_prev(1:size(alpha_max)) )
+    recompute_basis = .true.
+  else if( size(alpha_max) /= size(alpha_max_prev) )then
+    deallocate( alpha_max_prev )
+    allocate( alpha_max_prev(1:size(alpha_max)) )
+    recompute_basis = .true.
+  else if( alpha_max /= alpha_max_prev )then
     recompute_basis = .true.
   end if
+! Check for changes in atom_sigma_r: recompute basis only for poly3gauss
+  if( .not. allocated(atom_sigma_r_prev) )then
+    allocate( atom_sigma_r_prev(1:size(atom_sigma_r)) )
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  else if( size(atom_sigma_r) /= size(atom_sigma_r_prev) )then
+    deallocate( atom_sigma_r_prev )
+    allocate( atom_sigma_r_prev(1:size(atom_sigma_r)) )
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  else if( atom_sigma_r /= atom_sigma_r_prev )then
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  end if
+! Check for changes in rcut_hard: recompute basis only for poly3gauss
+  if( .not. allocated(rcut_hard_prev) )then
+    allocate( rcut_hard_prev(1:size(rcut_hard)) )
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  else if( size(rcut_hard) /= size(rcut_hard_prev) )then
+    deallocate( rcut_hard_prev )
+    allocate( rcut_hard_prev(1:size(rcut_hard)) )
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  else if( alpha_max /= alpha_max_prev )then
+    if( basis == "poly3gauss" )then
+      recompute_basis = .true.
+    end if
+  end if
+! Store for next check
+  alpha_max_prev = alpha_max
+  atom_sigma_r_prev = atom_sigma_r
+  rcut_hard_prev = rcut_hard
   n_max_prev = n_max
+! Here we compute the basis transformation matrices if they need to be recomputed
   if( recompute_basis )then
     if( allocated(W) .or. allocated(S) )then
       deallocate(W, S)
@@ -414,7 +474,7 @@ module soap_turbo_desc
   end if
 
 ! Create the multiplicity array
-  if( n_max_prev /= n_max .or. l_max_prev /= l_max )then
+  if( alpha_max_prev /= alpha_max .or. l_max_prev /= l_max )then
     recompute_multiplicity_array = .true.
   end if
   l_max_prev = l_max
