@@ -25,6 +25,7 @@
 
 module soap_turbo_desc
 
+  use mod_types
   use soap_turbo_radial
   use soap_turbo_angular
 
@@ -42,11 +43,11 @@ module soap_turbo_desc
 
 !-------------------
 ! Input variables
-  real*8, intent(in) :: rjs(:), thetas(:), phis(:)
-  real*8, intent(in) :: amplitude_scaling(:), atom_sigma_r_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
-  real*8, intent(in) :: central_weight(:), atom_sigma_r(:), global_scaling(:)
-  real*8, intent(in) :: nf(:), rcut_hard(:), rcut_soft(:)
-  real*8, intent(in) :: compress_P_el(:)
+  real(dp), intent(in) :: rjs(:), thetas(:), phis(:)
+  real(dp), intent(in) :: amplitude_scaling(:), atom_sigma_r_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
+  real(dp), intent(in) :: central_weight(:), atom_sigma_r(:), global_scaling(:)
+  real(dp), intent(in) :: nf(:), rcut_hard(:), rcut_soft(:)
+  real(dp), intent(in) :: compress_P_el(:)
 
   integer, intent(in) :: n_species, radial_enhancement, species(:,:), species_multiplicity(:)
   integer, intent(in) :: n_sites, n_neigh(:), l_max, n_atom_pairs, alpha_max(:), compress_P_nonzero, &
@@ -57,26 +58,26 @@ module soap_turbo_desc
   character(*), intent(in) :: basis, scaling_mode
 
 ! Output variables
-  real*8, intent(inout) :: soap(:,:), soap_cart_der(:,:,:)
+  real(dp), intent(inout) :: soap(:,:), soap_cart_der(:,:,:)
 !-------------------
 
 
 !-------------------
 ! Internal variables
-  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
-  complex*16, allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
-  complex*16, allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
-  complex*16, allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
+  complex(dp), allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
+  complex(dp), allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
+  complex(dp), allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
+  complex(dp), allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
 
-  real*8, allocatable, save :: W(:,:), S(:,:), multiplicity_array(:), atom_sigma_r_prev(:), rcut_hard_prev(:)
-  real*8, allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
-  real*8, allocatable :: W_temp(:,:), S_temp(:,:)
-  real*8, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
-  real*8, allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
-  real*8, allocatable :: radial_exp_coeff_der(:,:)
-  real*8, allocatable :: this_soap(:), this_soap_rad_der(:), this_soap_azi_der(:), this_soap_pol_der(:)
-  real*8 :: amplitude, multiplicity, pi, rcut_max
-  real*8 :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
+  real(dp), allocatable, save :: W(:,:), S(:,:), multiplicity_array(:), atom_sigma_r_prev(:), rcut_hard_prev(:)
+  real(dp), allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
+  real(dp), allocatable :: W_temp(:,:), S_temp(:,:)
+  real(dp), allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
+  real(dp), allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
+  real(dp), allocatable :: radial_exp_coeff_der(:,:)
+  real(dp), allocatable :: this_soap(:), this_soap_rad_der(:), this_soap_azi_der(:), this_soap_pol_der(:)
+  real(dp) :: amplitude, multiplicity, pi, rcut_max
+  real(dp) :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
 
   integer, allocatable :: i_beg(:), i_end(:)
@@ -782,13 +783,13 @@ module soap_turbo_desc
 
     implicit none
 
-    real*8, intent(in) :: radial_exp_coeff(:,:), radial_exp_coeff_der(:,:), rjs(:), cutoff
-    complex*16, intent(in) :: angular_exp_coeff(:,:)
-    complex*16 :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), angular_exp_coeff_pol_der(:,:)
-    complex*16, intent(out) :: cnk_rad_der(:,:,:), cnk_azi_der(:,:,:), cnk_pol_der(:,:,:)
+    real(dp), intent(in) :: radial_exp_coeff(:,:), radial_exp_coeff_der(:,:), rjs(:), cutoff
+    complex(dp), intent(in) :: angular_exp_coeff(:,:)
+    complex(dp) :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), angular_exp_coeff_pol_der(:,:)
+    complex(dp), intent(out) :: cnk_rad_der(:,:,:), cnk_azi_der(:,:,:), cnk_pol_der(:,:,:)
     integer, intent(in) :: n_sites, n_max, l_max, n_neigh(:)
     integer :: k2, i, j, n, m, k, l
-    real*8 :: pi
+    real(dp) :: pi
 
     pi = dacos(-1.d0)
 

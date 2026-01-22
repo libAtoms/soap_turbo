@@ -25,6 +25,8 @@
 
 module soap_turbo_functions
 
+  use mod_types
+
   contains
 
 !**************************************************************************
@@ -33,7 +35,7 @@ module soap_turbo_functions
 !   l is > 0, m can take values from 0 to l and x is within the [-1, 1] domain
     implicit none
     integer :: l, m, i, l2
-    real*8 :: plm_double, x, dfact_arg, pl2m, pmm, pmp1m, sq
+    real(dp) :: plm_double, x, dfact_arg, pl2m, pmm, pmp1m, sq
     if(l < 0 .or. m < 0 .or. m > l .or. dabs(x) > 1.d0)then
         write(*,*) "Bad arguments for associated Legendre polynomial"
     end if
@@ -117,8 +119,8 @@ module soap_turbo_functions
 !**************************************************************************
   function ylm_double(l, m, theta, phi)
     implicit none
-    real*8 :: plm, theta, phi, pref, pi, ylm_r, ylm_i, fact1, fact2
-    complex*16 :: ylm_double
+    real(dp) :: plm, theta, phi, pref, pi, ylm_r, ylm_i, fact1, fact2
+    complex(dp) :: ylm_double
     integer :: l, m, i, sgn
     pi = dacos(-1.d0)
 !   Factorials for |m|
@@ -162,14 +164,14 @@ module soap_turbo_functions
 !**************************************************************************
   subroutine get_eimphi(eimphi, prefl, prefm, lmax, phi, rj2s2)
     implicit none
-    complex*16 :: eimphi(:)
-    real*8 :: phi, mf, rj2s2, pref
+    complex(dp) :: eimphi(:)
+    real(dp) :: phi, mf, rj2s2, pref
     integer :: lmax, l, m, k
 !    logical, save :: init = .true.
-!    real*8, allocatable, save :: prefl(:)
-!    complex*16, allocatable, save :: prefm(:)
-    real*8 :: prefl(0:)
-    complex*16 :: prefm(0:)
+!    real(dp), allocatable, save :: prefl(:)
+!    complex(dp), allocatable, save :: prefm(:)
+    real(dp) :: prefl(0:)
+    complex(dp) :: prefm(0:)
 
 !    if( init )then
 !      allocate( prefl(0:lmax) )
@@ -201,8 +203,8 @@ module soap_turbo_functions
 !**************************************************************************
   subroutine get_preflm(preflm, lmax)
     implicit none
-    real*8 :: preflm(:)
-    real*8 :: ppi, fact1, fact2
+    real(dp) :: preflm(:)
+    real(dp) :: ppi, fact1, fact2
     integer :: lmax, l, m, k, kmax, i
     kmax = 1 + lmax*(lmax+1)/2 + lmax
     k = 1
@@ -266,7 +268,7 @@ module soap_turbo_functions
   function ilexp_double(l, x)
     implicit none
 
-    real*8 :: ilexp_double, x, x2, x4, fl, flm1, flm2, xcut = 1.d-7, fact
+    real(dp) :: ilexp_double, x, x2, x4, fl, flm1, flm2, xcut = 1.d-7, fact
     integer :: l, i
 
     if( l < 0 )then
@@ -327,8 +329,8 @@ module soap_turbo_functions
 
     implicit none
 
-    real*8, intent(in) :: u(1:3), v(1:3)
-    real*8 :: cross_product(1:3)
+    real(dp), intent(in) :: u(1:3), v(1:3)
+    real(dp) :: cross_product(1:3)
 
     cross_product(1) = u(2)*v(3) - u(3)*v(2)
     cross_product(2) = u(3)*v(1) - u(1)*v(3)

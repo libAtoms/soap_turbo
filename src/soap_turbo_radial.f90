@@ -26,6 +26,7 @@
 
 module soap_turbo_radial
 
+  use mod_types
   use soap_turbo_functions
 
   contains
@@ -39,7 +40,7 @@ module soap_turbo_radial
     implicit none
 
     integer :: a, b
-    real*8 :: rcut, N_a
+    real(dp) :: rcut, N_a
 
     b = 2*a + 5
 
@@ -76,22 +77,22 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling, central_weight
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real(dp), intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real(dp), intent(in) :: amplitude_scaling, central_weight
+    real(dp) :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
-    real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
-    real*8 :: W(:,:)
-    real*8 :: atom_sigma_f, rj_f
+    real(dp) :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
+    real(dp) :: W(:,:)
+    real(dp) :: atom_sigma_f, rj_f
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (alpha_max, n_atom_pairs)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
-    real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
+    real(dp) :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(dp), allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false., print_message = .false.
-    real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
+    real(dp) :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 7. These are relatively small up to alpha_max = 10 and become
@@ -407,22 +408,22 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real(dp), intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real(dp), intent(in) :: amplitude_scaling
+    real(dp) :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
-    real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
-    real*8 :: W(:,:)
-    real*8 :: atom_sigma_f, rj_f, N_gauss
+    real(dp) :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
+    real(dp) :: W(:,:)
+    real(dp) :: atom_sigma_f, rj_f, N_gauss
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (n_sites, n_neigh_max, alpha_max)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
-    real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
+    real(dp) :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(dp), allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false., print_message = .false.
-    real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
+    real(dp) :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 8. These are relatively small up to alpha_max = 11 and become
@@ -754,8 +755,8 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max, i, j, info
-    real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
+    real(dp), intent(inout) :: W(:,:), S(:,:)
+    real(dp), allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
@@ -844,10 +845,10 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max, i, j, info, n
-    real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
-    real*8 :: s2, I_n, N_n, N_np1, I_np1, N_np2, I_np2, C2, sq2, pi, atom_sigma, rcut_hard
-    real*8, intent(in) :: rcut_hard_in, atom_sigma_in
+    real(dp), intent(inout) :: W(:,:), S(:,:)
+    real(dp), allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
+    real(dp) :: s2, I_n, N_n, N_np1, I_np1, N_np2, I_np2, C2, sq2, pi, atom_sigma, rcut_hard
+    real(dp), intent(in) :: rcut_hard_in, atom_sigma_in
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
@@ -966,7 +967,7 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max
-    real*8, intent(inout) :: W(:,:), S(:,:)
+    real(dp), intent(inout) :: W(:,:), S(:,:)
 
     select case(alpha_max)
       case(:0)
@@ -1285,40 +1286,40 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling, central_weight
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real(dp), intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, atom_sigma_scaling
+    real(dp), intent(in) :: amplitude_scaling, central_weight
+    real(dp) :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
 !
     integer :: i, j, k
-    real*8 :: pi, rj, s2, atom_width, atom_width_scaling, filter_width, x
-    real*8, allocatable :: A(:,:)
-    real*8 :: W(:,:)
+    real(dp) :: pi, rj, s2, atom_width, atom_width_scaling, filter_width, x
+    real(dp), allocatable :: A(:,:)
+    real(dp) :: W(:,:)
 !   derivatives
-    real*8 :: amplitude_der
+    real(dp) :: amplitude_der
 !   Results will be stored in exp_coeff, which is an array of dimension (alpha_max, n_atom_pairs)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(dp) :: exp_coeff(:,:), exp_coeff_der(:,:)
     logical, save :: print_basis = .false.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real*8, allocatable :: rjs(:), lim_soft_array(:,:), atom_sigma_scaleds(:), s2s(:), atom_widths(:), &
+    real(dp), allocatable :: rjs(:), lim_soft_array(:,:), atom_sigma_scaleds(:), s2s(:), atom_widths(:), &
                            I0_array(:,:,:), g_aux_left_array(:,:,:), g_aux_right_array(:,:,:), &
                            M_left_array(:,:,:), M_right_array(:,:,:), exp_coeff_soft_array(:,:), &
                            amplitudes(:), I_left_array(:,:), I_right_array(:,:), B(:,:), &
                            exp_coeff_buffer_array(:,:), lim_buffer_array(:,:)
 !!!! derivatives
-    real*8, allocatable :: g_aux_left_der_array(:,:,:), g_aux_right_der_array(:,:,:), &
+    real(dp), allocatable :: g_aux_left_der_array(:,:,:), g_aux_right_der_array(:,:,:), &
                            M_left_der_array(:,:,:), M_right_der_array(:,:,:), B_der(:,:), &
                            exp_coeff_soft_der_array(:,:), amplitudes_der(:), &
                            I_left_der_array(:,:), I_right_der_array(:,:), exp_coeff_buffer_der_array(:,:)
 
-    real*8 :: vect(1:4)
+    real(dp) :: vect(1:4)
     integer, allocatable :: rjs_idx(:)
 !    integer, allocatable ::  soft_weights(:), buffer_weights(:)
     integer :: nn, k2
-    real*8, save :: elapsed_time = 0.d0
-    real*8 :: t1, t2
+    real(dp), save :: elapsed_time = 0.d0
+    real(dp) :: t1, t2
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !   This is for debugging. It prints the basis set to plot it with Gnuplot (gfortran only)
@@ -1883,10 +1884,10 @@ module soap_turbo_radial
   function g_aux(r, r0, width, piece) result(poly)
     implicit none
  
-    real*8, intent(in) :: r, r0, width
+    real(dp), intent(in) :: r, r0, width
     character(*), intent(in) :: piece
-    real*8 :: x
-    real*8 :: poly(1:4)
+    real(dp) :: x
+    real(dp) :: poly(1:4)
 
     x = (r - r0)/width
 
@@ -1908,11 +1909,11 @@ module soap_turbo_radial
   function g_aux_array(r, r0, width, piece) result(poly)
     implicit none
  
-    real*8, intent(in) :: r(:,:), r0(:), width(:)
+    real(dp), intent(in) :: r(:,:), r0(:), width(:)
     character(*), intent(in) :: piece
-    real*8, dimension( 1:size(r,1), 1:size(r,2) ) :: x, x2, x3
-    real*8, dimension( 1:size(width) ) :: w, w2, w3
-    real*8, dimension( 1:size(r,1), 1:4, 1:size(r,2) ) :: poly
+    real(dp), dimension( 1:size(r,1), 1:size(r,2) ) :: x, x2, x3
+    real(dp), dimension( 1:size(width) ) :: w, w2, w3
+    real(dp), dimension( 1:size(r,1), 1:4, 1:size(r,2) ) :: poly
     integer :: i, j
 
     w(:) = 1.d0/width(:)
@@ -1956,11 +1957,11 @@ module soap_turbo_radial
   function g_aux_der_array(r, r0, width, width_scaling, piece) result(poly)
     implicit none
  
-    real*8, intent(in) :: r(:,:), r0(:), width(:), width_scaling
+    real(dp), intent(in) :: r(:,:), r0(:), width(:), width_scaling
     character(*), intent(in) :: piece
-    real*8, dimension( 1:size(r,1), 1:size(r,2) ) :: x, x2, x3
-    real*8, dimension( 1:size(width) ) :: w, w2, w3, w4
-    real*8, dimension( 1:size(r,1), 1:4, 1:size(r,2) ) :: poly
+    real(dp), dimension( 1:size(r,1), 1:size(r,2) ) :: x, x2, x3
+    real(dp), dimension( 1:size(width) ) :: w, w2, w3, w4
+    real(dp), dimension( 1:size(r,1), 1:4, 1:size(r,2) ) :: poly
     integer :: i, j
 
     w(:) = 1.d0/width(:)
@@ -2006,10 +2007,10 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max
-    real*8, intent(in) :: rcut
+    real(dp), intent(in) :: rcut
     integer :: i, j, l(1:2)
     integer, allocatable :: factor(:)
-    real*8, intent(inout) :: A(:,:)
+    real(dp), intent(inout) :: A(:,:)
 
     allocate( factor(1:alpha_max) )
     
@@ -2036,12 +2037,12 @@ module soap_turbo_radial
   subroutine get_constant_poly_filter_coeff_array(rj, width_j, r_filter, filter_width, piece, B)
     implicit none
 
-    real*8, intent(in) :: rj(:), width_j(:), r_filter, filter_width
+    real(dp), intent(in) :: rj(:), width_j(:), r_filter, filter_width
     character(*), intent(in) :: piece
     integer :: i, j, k
-    real*8 :: C_filter(1:4)
-    real*8, allocatable :: col_poly(:, :, :), C_poly(:, :), rj_temp(:,:)
-    real*8, intent(out) :: B(:, :)
+    real(dp) :: C_filter(1:4)
+    real(dp), allocatable :: col_poly(:, :, :), C_poly(:, :), rj_temp(:,:)
+    real(dp), intent(out) :: B(:, :)
 
     allocate( col_poly(1:size(rj), 1:4, 1:1) )
     allocate( C_poly(1:7*size(rj), 1:4) )
@@ -2083,12 +2084,12 @@ module soap_turbo_radial
   subroutine get_constant_poly_filter_coeff_der_array(rj, width_j, width_scaling, r_filter, filter_width, piece, B)
     implicit none
 
-    real*8, intent(in) :: rj(:), width_j(:), r_filter, filter_width, width_scaling
+    real(dp), intent(in) :: rj(:), width_j(:), r_filter, filter_width, width_scaling
     character(*), intent(in) :: piece
     integer :: i, j, k
-    real*8 :: C_filter(1:4)
-    real*8, allocatable :: col_poly(:, :, :), C_poly(:, :), rj_temp(:,:)
-    real*8, intent(out) :: B(:, :)
+    real(dp) :: C_filter(1:4)
+    real(dp), allocatable :: col_poly(:, :, :), C_poly(:, :), rj_temp(:,:)
+    real(dp), intent(out) :: B(:, :)
 
     allocate( col_poly(1:size(rj), 1:4, 1:1) )
     allocate( C_poly(1:7*size(rj), 1:4) )
@@ -2129,11 +2130,11 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: a_max
-    real*8, intent(in) :: rcut, r(:,:)
+    real(dp), intent(in) :: rcut, r(:,:)
     integer :: i, j
 !   The 1st dimension of r is neighbor index and the third dimension 1:3 for the 3 limits
-    real*8, dimension(1:size(r,1), 1:a_max, 1:size(r,2)) :: radial_terms
-    real*8, dimension(1:size(r,1), 1:size(r,2)) :: r_slice
+    real(dp), dimension(1:size(r,1), 1:a_max, 1:size(r,2)) :: radial_terms
+    real(dp), dimension(1:size(r,1), 1:size(r,2)) :: r_slice
 
     r_slice = 1.d0 - r/rcut
 
@@ -2157,9 +2158,9 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: degree
-    real*8, intent(in) :: r
+    real(dp), intent(in) :: r
     integer :: p
-    real*8, dimension(1:degree + 1) :: radial_terms 
+    real(dp), dimension(1:degree + 1) :: radial_terms 
 
     radial_terms = 1.d0
     do p = 2, degree + 1
@@ -2179,9 +2180,9 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: degree
-    real*8, intent(in) :: r(:)
+    real(dp)intent(in) :: r(:)
     integer :: p
-    real*8, dimension(1:size(r), 1:degree + 1) :: radial_terms 
+    real(dp), dimension(1:size(r), 1:degree + 1) :: radial_terms 
 
     radial_terms = 1.d0
     do p = 2, degree + 1
@@ -2211,9 +2212,9 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: degree
-    real*8, intent(in) :: r
-    real*8, dimension(1:degree + 1) :: radial_terms
-    real*8, dimension(1:degree + 1, 1:degree + 1) :: M_radial
+    real(dp), intent(in) :: r
+    real(dp), dimension(1:degree + 1) :: radial_terms
+    real(dp), dimension(1:degree + 1, 1:degree + 1) :: M_radial
 
     radial_terms = radial_monomial(r, degree)
 
@@ -2248,15 +2249,15 @@ module soap_turbo_radial
     implicit none
 
     integer :: i
-    real*8, intent(in) :: r(:)
-    real*8, dimension(1:size(r), 1:7) :: radial_terms
-    real*8, dimension(1:size(r), 1:7, 1:7) :: M_radial
-    real*8, dimension(1:7, 1:7, 1:size(r)) :: M_radial_t
-    real*8, dimension(6) :: v1 = [1.d0, 2.d0, 3.d0, 4.d0, 5.d0, 6.d0]
-    real*8, dimension(5) :: v2 = [2.d0, 6.d0, 12.d0, 20.d0, 30.d0]
-    real*8, dimension(4) :: v3 = [6.d0, 24.d0, 60.d0, 120.d0]
-    real*8, dimension(3) :: v4 = [24.d0, 120.d0, 360.d0]
-    real*8, dimension(2) :: v5 = [120.d0, 720.d0]
+    real(dp), intent(in) :: r(:)
+    real(dp), dimension(1:size(r), 1:7) :: radial_terms
+    real(dp), dimension(1:size(r), 1:7, 1:7) :: M_radial
+    real(dp), dimension(1:7, 1:7, 1:size(r)) :: M_radial_t
+    real(dp), dimension(6) :: v1 = [1.d0, 2.d0, 3.d0, 4.d0, 5.d0, 6.d0]
+    real(dp), dimension(5) :: v2 = [2.d0, 6.d0, 12.d0, 20.d0, 30.d0]
+    real(dp), dimension(4) :: v3 = [6.d0, 24.d0, 60.d0, 120.d0]
+    real(dp), dimension(3) :: v4 = [24.d0, 120.d0, 360.d0]
+    real(dp), dimension(2) :: v5 = [120.d0, 720.d0]
 
     radial_terms = radial_monomial_array(r, 6)
 

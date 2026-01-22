@@ -25,6 +25,8 @@
 
 module soap_turbo_compress_module
 
+  use mod_types
+
   contains
 
 !**************************************************************************
@@ -37,14 +39,14 @@ module soap_turbo_compress_module
   character(*), intent(in) :: compress_mode, what_to_do
 
 ! Input-Output variables
-  real*8, intent(inout) :: P_el(:)
+  real(dp), intent(inout) :: P_el(:)
   integer, intent(inout) :: dim, P_nonzero, P_i(:), P_j(:)
 
 ! Internal variables
   integer, allocatable :: pivot(:)
   integer :: n_species, n_max, i, counter, n, m, l, k
   logical :: set_indices
-  real*8 :: f
+  real(dp) :: f
   integer, allocatable :: ns(:,:), dense_to_sparse(:,:)
   integer :: nu_R, nu_S, N1, N2, S1, S2, n_compressed, n_uncompressed, n_1, n_2, alpha, beta, z1, z2, &
              a1, i_c, j, j_c, a2, ind, comp_ind, i_temp, alpha_2, beta_2, z1_2, z2_2, n_1_2, n_2_2, &
