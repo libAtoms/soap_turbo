@@ -2180,7 +2180,7 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: degree
-    real(dp)intent(in) :: r(:)
+    real(dp), intent(in) :: r(:)
     integer :: p
     real(dp), dimension(1:size(r), 1:degree + 1) :: radial_terms 
 
