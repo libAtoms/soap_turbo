@@ -25,7 +25,8 @@
 
 
 module soap_turbo_radial
-
+  
+  use mod_types
   use soap_turbo_functions
 
   contains
@@ -39,7 +40,7 @@ module soap_turbo_radial
     implicit none
 
     integer :: a, b
-    real*8 :: rcut, N_a
+    real(dp) :: rcut, N_a
 
     b = 2*a + 5
 
@@ -76,22 +77,22 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling, central_weight, connectivity_weights(:)
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real(dp), intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real(dp), intent(in) :: amplitude_scaling, central_weight, connectivity_weights(:)
+    real(dp) :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives, do_central
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
-    real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
-    real*8 :: W(:,:)
-    real*8 :: atom_sigma_f, rj_f
+    real(dp) :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
+    real(dp) :: W(:,:)
+    real(dp) :: atom_sigma_f, rj_f
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (alpha_max, n_atom_pairs)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
-    real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
+    real(dp) :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(dp), allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false., print_message = .true.
-    real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
+    real(dp) :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 7. These are relatively small up to alpha_max = 10 and become
@@ -409,22 +410,22 @@ module soap_turbo_radial
     implicit none
 
     integer, intent(in) :: alpha_max, n_neigh(:), n_sites, radial_enhancement
-    real*8, intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
-    real*8, intent(in) :: amplitude_scaling, connectivity_weights(:)
-    real*8 :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
+    real(dp), intent(in) :: rcut_soft_in, rcut_hard_in, rjs_in(:), atom_sigma_in, nf, atom_sigma_scaling
+    real(dp), intent(in) :: amplitude_scaling, connectivity_weights(:)
+    real(dp) :: rcut_soft, rcut_hard, atom_sigma, atom_sigma_scaled, amplitude
     logical, intent(in) :: mask(:), do_derivatives
     character(*), intent(in) :: scaling_mode
 !
     integer :: n, i, j, k, alpha_max_der
-    real*8 :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
-    real*8 :: W(:,:)
-    real*8 :: atom_sigma_f, rj_f, N_gauss
+    real(dp) :: I_n, I_np1, I_np2, pi, sq2, rj, N_n, N_np1, N_np2, C1, C2, dr, s2, sf2
+    real(dp) :: W(:,:)
+    real(dp) :: atom_sigma_f, rj_f, N_gauss
 !   Results will be stored in exp_coeff, which is an array of dimension
 !   (n_sites, n_neigh_max, alpha_max)
-    real*8 :: exp_coeff(:,:), exp_coeff_der(:,:)
-    real*8, allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
+    real(dp) :: exp_coeff(:,:), exp_coeff_der(:,:)
+    real(dp), allocatable :: exp_coeff_temp1(:), exp_coeff_temp2(:), exp_coeff_der_temp(:)
     logical, save :: print_basis = .false., print_message = .true.
-    real*8 :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
+    real(dp) :: denom, der_sjf_rj, der_rjf_rj, amplitude_der, pref_f, der_pref_f, sigma_star
 
 !   For this basis numerical instabilities in the orthonormal basis construction develop
 !   above alpha_max = 8. These are relatively small up to alpha_max = 11 and become
@@ -758,8 +759,8 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max, i, j, info
-    real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
+    real(dp), intent(inout) :: W(:,:), S(:,:)
+    real(dp), allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
@@ -848,10 +849,10 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max, i, j, info, n
-    real*8, intent(inout) :: W(:,:), S(:,:)
-    real*8, allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
-    real*8 :: s2, I_n, N_n, N_np1, I_np1, N_np2, I_np2, C2, sq2, pi, atom_sigma, rcut_hard
-    real*8, intent(in) :: rcut_hard_in, atom_sigma_in
+    real(dp), intent(inout) :: W(:,:), S(:,:)
+    real(dp), allocatable :: Sb(:,:), U(:,:), VT(:,:), svd(:), work(:), Sc(:,:)
+    real(dp) :: s2, I_n, N_n, N_np1, I_np1, N_np2, I_np2, C2, sq2, pi, atom_sigma, rcut_hard
+    real(dp), intent(in) :: rcut_hard_in, atom_sigma_in
     integer, allocatable :: ipiv(:)
     logical :: stable_basis = .true.
 
@@ -970,7 +971,7 @@ module soap_turbo_radial
     implicit none
 
     integer :: alpha_max
-    real*8, intent(inout) :: W(:,:), S(:,:)
+    real(dp), intent(inout) :: W(:,:), S(:,:)
 
     select case(alpha_max)
       case(:0)

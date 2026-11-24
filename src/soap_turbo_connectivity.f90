@@ -25,7 +25,8 @@
 
 
 module connectivity_module
-
+  
+  use mod_types
   implicit none
 
   contains
@@ -60,17 +61,17 @@ module connectivity_module
       implicit none
 
 !     Input variables
-      real*8, intent(in) :: positions(:,:), cutoff_hard(:), cutoff_soft(:)
+      real(dp), intent(in) :: positions(:,:), cutoff_hard(:), cutoff_soft(:)
 !     Output variables
-      real*8, intent(out), dimension(1:size(positions,2)) :: connectivity_weights
+      real(dp), intent(out), dimension(1:size(positions,2)) :: connectivity_weights
 !     Internal variables
       integer, dimension(1:size(positions,2)) :: atom_belongs_to_cluster_hard
       integer, dimension(1:size(positions,2)) :: atom_belongs_to_cluster_soft
       logical, dimension(1:size(positions,2),1:size(positions,2)) :: bonded_hard, bonded_soft
       logical, dimension(1:size(positions,2)) :: atom_visited
-      real*8, dimension(1:size(positions,2)) :: cluster_weights
-      real*8, dimension(1:size(positions,2),1:size(positions,2)) :: pairwise_connectivity_weights
-      real*8 :: d, cw, cs, ch, x, y, z
+      real(dp), dimension(1:size(positions,2)) :: cluster_weights
+      real(dp), dimension(1:size(positions,2),1:size(positions,2)) :: pairwise_connectivity_weights
+      real(dp) :: d, cw, cs, ch, x, y, z
       integer :: n_atoms, cluster, i, j
 
       n_atoms = size(positions,2)
