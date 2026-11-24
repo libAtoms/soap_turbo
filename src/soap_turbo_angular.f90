@@ -391,7 +391,7 @@ module soap_turbo_angular
     logical, intent(in) :: mask(:,:), do_derivatives
 !    logical, save :: init = .true.
 !    realdp, allocatable, save :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
-!    complex*16, allocatable, save :: eimphi_azi_der(:)
+!    complex(dp), allocatable, save :: eimphi_azi_der(:)
     real(dp), allocatable :: plm_array_der(:), plm_array_div_sin(:), plm_array_der_mul_sin(:)
     complex(dp), allocatable :: eimphi_azi_der(:)
     logical :: do_this

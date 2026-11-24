@@ -44,12 +44,12 @@ module soap_turbo_desc
 
 !-------------------
 ! Input variables
-  realdp, intent(in) :: rjs(:), thetas(:), phis(:)
-  realdp, intent(in) :: amplitude_scaling(:), atom_sigma_r_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
-  realdp, intent(in) :: central_weight(:), atom_sigma_r(:), global_scaling(:)
-  realdp, intent(in) :: nf(:), rcut_hard(:), rcut_soft(:)
-  realdp, intent(in) :: compress_P_el(:)
-  realdp, intent(in) :: bonding_hard(:), bonding_soft(:)
+  real(dp), intent(in) :: rjs(:), thetas(:), phis(:)
+  real(dp), intent(in) :: amplitude_scaling(:), atom_sigma_r_scaling(:), atom_sigma_t(:), atom_sigma_t_scaling(:)
+  real(dp), intent(in) :: central_weight(:), atom_sigma_r(:), global_scaling(:)
+  real(dp), intent(in) :: nf(:), rcut_hard(:), rcut_soft(:)
+  real(dp), intent(in) :: compress_P_el(:)
+  real(dp), intent(in) :: bonding_hard(:), bonding_soft(:)
 
   integer, intent(in) :: n_species, radial_enhancement, species(:,:), species_multiplicity(:)
   integer, intent(in) :: n_sites, n_neigh(:), l_max, n_atom_pairs, alpha_max(:), compress_P_nonzero, &
@@ -60,26 +60,26 @@ module soap_turbo_desc
   character(*), intent(in) :: basis, scaling_mode
 
 ! Output variables
-  realdp, intent(inout) :: soap(:,:), soap_cart_der(:,:,:)
+  real(dp), intent(inout) :: soap(:,:), soap_cart_der(:,:,:)
 !-------------------
 
 
 !-------------------
 ! Internal variables
-  complex*16, allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
-  complex*16, allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
-  complex*16, allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
-  complex*16, allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
+  complex(dp), allocatable :: angular_exp_coeff(:,:), cnk(:,:,:)
+  complex(dp), allocatable :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), cnk_rad_der(:,:,:)
+  complex(dp), allocatable :: cnk_azi_der(:,:,:), angular_exp_coeff_pol_der(:,:), cnk_pol_der(:,:,:)
+  complex(dp), allocatable :: eimphi(:), prefm(:), eimphi_rad_der(:)
 
-  realdp, allocatable, save :: W(:,:), S(:,:), multiplicity_array(:)
-  realdp, allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
-  realdp, allocatable :: W_temp(:,:), S_temp(:,:)
-  realdp, allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
-  realdp, allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
-  realdp, allocatable :: radial_exp_coeff_der(:,:)
-  realdp, allocatable :: this_soap(:), this_soap_rad_der(:), this_soap_azi_der(:), this_soap_pol_der(:)
-  realdp :: amplitude, multiplicity, pi, rcut_max
-  realdp :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
+  real(dp), allocatable, save :: W(:,:), S(:,:), multiplicity_array(:)
+  real(dp), allocatable :: soap_rad_der(:,:), sqrt_dot_p(:), soap_azi_der(:,:)
+  real(dp), allocatable :: W_temp(:,:), S_temp(:,:)
+  real(dp), allocatable :: radial_exp_coeff(:,:), soap_pol_der(:,:)
+  real(dp), allocatable :: preflm(:), plm_array(:), prefl(:), fact_array(:), prefl_rad_der(:)
+  real(dp), allocatable :: radial_exp_coeff_der(:,:)
+  real(dp), allocatable :: this_soap(:), this_soap_rad_der(:), this_soap_azi_der(:), this_soap_pol_der(:)
+  real(dp) :: amplitude, multiplicity, pi, rcut_max
+  real(dp) :: radial_time, angular_time, coeff_time, time3, total_time, soap_time, time1, time2, compress_time, &
             memory_time, basis_time
 
   integer, allocatable :: i_beg(:), i_end(:)
@@ -91,7 +91,7 @@ module soap_turbo_desc
   logical, save :: recompute_basis = .true., recompute_multiplicity_array = .true.
 
 ! Connectivity
-  realdp, allocatable :: xyz(:,:), bonding_cutoff_hard(:), bonding_cutoff_soft(:), connectivity_weights(:), &
+  real(dp), allocatable :: xyz(:,:), bonding_cutoff_hard(:), bonding_cutoff_soft(:), connectivity_weights(:), &
                          this_connectivity_weights(:)
 !-------------------
 
@@ -762,13 +762,13 @@ module soap_turbo_desc
 
     implicit none
 
-    realdp, intent(in) :: radial_exp_coeff(:,:), radial_exp_coeff_der(:,:), rjs(:), cutoff
-    complex*16, intent(in) :: angular_exp_coeff(:,:)
-    complex*16 :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), angular_exp_coeff_pol_der(:,:)
-    complex*16, intent(out) :: cnk_rad_der(:,:,:), cnk_azi_der(:,:,:), cnk_pol_der(:,:,:)
+    real(dp), intent(in) :: radial_exp_coeff(:,:), radial_exp_coeff_der(:,:), rjs(:), cutoff
+    complex(dp), intent(in) :: angular_exp_coeff(:,:)
+    complex(dp) :: angular_exp_coeff_rad_der(:,:), angular_exp_coeff_azi_der(:,:), angular_exp_coeff_pol_der(:,:)
+    complex(dp), intent(out) :: cnk_rad_der(:,:,:), cnk_azi_der(:,:,:), cnk_pol_der(:,:,:)
     integer, intent(in) :: n_sites, n_max, l_max, n_neigh(:)
     integer :: k2, i, j, n, m, k, l
-    realdp :: pi
+    real(dp) :: pi
 
     pi = dacos(-1.d0)
 
@@ -819,7 +819,7 @@ module soap_turbo_desc
 !   Input variables
     integer, intent(in) :: max_species_multiplicity, n_species_soap, which_atom, indices(1:3), &
                            n_neigh(:), n_atom_pairs, neighbors_list(:)
-    characterdp, intent(in) :: species_types_soap(:), xyz_species(:), xyz_species_supercell(:)
+    character*8, intent(in) :: species_types_soap(:), xyz_species(:), xyz_species_supercell(:)
     logical, intent(in) :: all_atoms
 
 !   Output variables
