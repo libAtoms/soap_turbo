@@ -46,7 +46,7 @@ module soap_turbo_compress_module
   integer, allocatable :: pivot(:)
   integer :: n_species, n_max, i, counter, n, m, l, k
   logical :: set_indices
-  real(dp= :: f
+  real(dp) :: f
   integer, allocatable :: ns(:,:), dense_to_sparse(:,:)
   integer :: nu_R, nu_S, N1, N2, S1, S2, n_compressed, n_uncompressed, n_1, n_2, alpha, beta, z1, z2, &
              a1, i_c, j, j_c, a2, ind, comp_ind, i_temp, alpha_2, beta_2, z1_2, z2_2, n_1_2, n_2_2, &
